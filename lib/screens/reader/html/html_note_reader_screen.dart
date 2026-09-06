@@ -248,9 +248,139 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
     final user = authService.currentUser;
     final userIdentifier = user?.email ?? user?.phoneNumber ?? 'CA-STUDENT';
     final themeConfig = _readerSettings.themeConfig;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isDesktopMeasure = screenWidth >= 900;
 
     final isDesktop = !kIsWeb &&
         (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+
+    // Reading content column with webview/player and overlays
+    Widget contentColumn = Stack(
+      children: [
+        // 1. Protected HTML Content View (Mobile InAppWebView or Desktop Chromium)
+        if (!_isLoading && _decryptedHtml != null && !_isContentBlanked)
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => setState(() => _showControls = !_showControls),
+              child: isDesktop
+                  ? DesktopChromiumPlayer(
+                      htmlContent: _decryptedHtml!,
+                      themeConfig: themeConfig,
+                      fontSize: _readerSettings.fontSize,
+                      isSerif: _readerSettings.isSerif,
+                      onControllerCreated: (controller) => _webViewController = controller,
+                      onCanvasTap: () => setState(() => _showControls = !_showControls),
+                      onContentLoaded: () {},
+                    )
+                  : MobileHtmlPlayer(
+                      htmlContent: _decryptedHtml!,
+                      themeConfig: themeConfig,
+                      fontSize: _readerSettings.fontSize,
+                      isSerif: _readerSettings.isSerif,
+                      onControllerCreated: (controller) => _webViewController = controller,
+                      onCanvasTap: () => setState(() => _showControls = !_showControls),
+                      onContentLoaded: () {},
+                    ),
+            ),
+          ),
+
+        // 2. Blanked Content State (Triggered on Capture Detection)
+        if (_isContentBlanked)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.gpp_bad_rounded,
+                        color: AppTheme.errorRed,
+                        size: 64,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Protected Content Blanked',
+                        style: TextStyle(
+                          color: AppTheme.textLight,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _violationWarning ??
+                            "Screenshots and recording aren't allowed here — repeated attempts will log you out.",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        // 3. Drifting Forensic Watermark (Email or Phone, low opacity ~0.15, 20-40s repositioning)
+        DriftingWatermark(
+          identifier: userIdentifier,
+          minSeconds: 20,
+          maxSeconds: 40,
+          opacity: 0.15,
+        ),
+
+        // 4. Loading State
+        if (_isLoading)
+          const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentAmber),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Decrypting Cached Study Material (AES-256)...',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+
+        // 5. Error State
+        if (_errorMessage != null)
+          Center(
+            child: Container(
+              margin: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppTheme.inkCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.4)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, color: AppTheme.errorRed, size: 48),
+                  const SizedBox(height: 14),
+                  Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
 
     return Scaffold(
       backgroundColor: themeConfig.backgroundColor,
@@ -284,15 +414,16 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
-          IconButton(
-            icon: Icon(
-              Icons.format_list_bulleted_rounded,
-              color: themeConfig.textColor,
-              size: 20,
+          if (!isDesktopMeasure)
+            IconButton(
+              icon: Icon(
+                Icons.format_list_bulleted_rounded,
+                color: themeConfig.textColor,
+                size: 20,
+              ),
+              tooltip: 'Table of Contents',
+              onPressed: () => _openTocDrawer(context, themeConfig),
             ),
-            tooltip: 'Table of Contents',
-            onPressed: () => _openTocDrawer(context, themeConfig),
-          ),
           IconButton(
             icon: Icon(
               _showControls ? Icons.text_fields_rounded : Icons.tune_rounded,
@@ -304,164 +435,88 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
           ),
         ],
       ),
-      drawer: Drawer(
-        backgroundColor: themeConfig.cardColor,
-        child: NotifyReaderDrawer(
-          chapters: _tocChapters,
-          activeSectionId: _activeSectionId,
-          themeConfig: themeConfig,
-          onClose: () => Navigator.of(context).pop(),
-          onSectionSelected: _onSectionSelected,
-        ),
-      ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // 1. Protected HTML Content View (Mobile InAppWebView or Desktop Chromium)
-            if (!_isLoading && _decryptedHtml != null && !_isContentBlanked)
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onTap: () => setState(() => _showControls = !_showControls),
-                  child: isDesktop
-                      ? DesktopChromiumPlayer(
-                          htmlContent: _decryptedHtml!,
-                          themeConfig: themeConfig,
-                          fontSize: _readerSettings.fontSize,
-                          isSerif: _readerSettings.isSerif,
-                          onControllerCreated: (controller) => _webViewController = controller,
-                          onCanvasTap: () => setState(() => _showControls = !_showControls),
-                          onContentLoaded: () {},
-                        )
-                      : MobileHtmlPlayer(
-                          htmlContent: _decryptedHtml!,
-                          themeConfig: themeConfig,
-                          fontSize: _readerSettings.fontSize,
-                          isSerif: _readerSettings.isSerif,
-                          onControllerCreated: (controller) => _webViewController = controller,
-                          onCanvasTap: () => setState(() => _showControls = !_showControls),
-                          onContentLoaded: () {},
-                        ),
-                ),
+      drawer: isDesktopMeasure
+          ? null
+          : Drawer(
+              backgroundColor: themeConfig.cardColor,
+              child: NotifyReaderDrawer(
+                chapters: _tocChapters,
+                activeSectionId: _activeSectionId,
+                themeConfig: themeConfig,
+                onClose: () => Navigator.of(context).pop(),
+                onSectionSelected: _onSectionSelected,
               ),
-
-            // 2. Reader Floating Controls Bar (Theme switcher, font stepper, typeface toggle)
-            if (_showControls && !_isLoading && _errorMessage == null && !_isContentBlanked)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  top: false,
-                  child: NotifyReaderControlsBar(
-                    settings: _readerSettings,
-                    onClose: () => setState(() => _showControls = false),
-                  ),
-                ),
-              ),
-
-            // 2. Blanked Content State (Triggered on Capture Detection)
-            if (_isContentBlanked)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black,
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.gpp_bad_rounded,
-                            color: AppTheme.errorRed,
-                            size: 64,
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Protected Content Blanked',
-                            style: TextStyle(
-                              color: AppTheme.textLight,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            _violationWarning ??
-                                "Screenshots and recording aren't allowed here — repeated attempts will log you out.",
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 13,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-            // 3. Drifting Forensic Watermark (Email or Phone, low opacity ~0.15, 20-40s repositioning)
-            DriftingWatermark(
-              identifier: userIdentifier,
-              minSeconds: 20,
-              maxSeconds: 40,
-              opacity: 0.15,
             ),
-
-            // 4. Loading State
-            if (_isLoading)
-              const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentAmber),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Decrypting Cached Study Material (AES-256)...',
-                      style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-
-            // 5. Error State
-            if (_errorMessage != null)
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.all(24),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppTheme.inkCard,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.4)),
+      body: SafeArea(
+        child: isDesktopMeasure
+            ? Row(
+                children: [
+                  // Stationary 280px left rail
+                  NotifyReaderDrawer(
+                    chapters: _tocChapters,
+                    activeSectionId: _activeSectionId,
+                    themeConfig: themeConfig,
+                    isDockedRail: true,
+                    onSectionSelected: _onSectionSelected,
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error_outline, color: AppTheme.errorRed, size: 48),
-                      const SizedBox(height: 14),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Back to Notes'),
-                      ),
-                    ],
+                  // Reading Measure Column (max width 760px, centered with 32px padding)
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 760),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 32),
+                              child: contentColumn,
+                            ),
+                          ),
+                        ),
+                        // Desktop reader controls bar
+                        if (_showControls && !_isLoading && _errorMessage == null && !_isContentBlanked)
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 760),
+                                child: SafeArea(
+                                  top: false,
+                                  child: NotifyReaderControlsBar(
+                                    settings: _readerSettings,
+                                    onClose: () => setState(() => _showControls = false),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
+              )
+            : Stack(
+                children: [
+                  contentColumn,
+                  // Mobile reader controls bar
+                  if (_showControls && !_isLoading && _errorMessage == null && !_isContentBlanked)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: SafeArea(
+                        top: false,
+                        child: NotifyReaderControlsBar(
+                          settings: _readerSettings,
+                          onClose: () => setState(() => _showControls = false),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-          ],
-        ),
       ),
     );
   }
 }
+

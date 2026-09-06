@@ -188,119 +188,125 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
     final user = authService.currentUser;
     final userIdentifier = user?.email ?? user?.phoneNumber ?? "CA-STUDENT";
     final themeConfig = _readerSettings.themeConfig;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isDesktopMeasure = screenWidth >= 900;
 
     // Determine platform for player dispatch
     final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
-    return Scaffold(
-      backgroundColor: themeConfig.backgroundColor,
-      drawer: Drawer(
-        backgroundColor: themeConfig.cardColor,
-        child: NotifyReaderDrawer(
-          chapters: _tocChapters,
-          currentPage: _currentPage,
-          themeConfig: themeConfig,
-          onClose: () => Navigator.of(context).pop(),
-          onSectionSelected: (section) {
-            _onPageChanged(section.pageNumber);
-          },
-        ),
-      ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // 1. DRM Video Frame Canvas with Zoom and Pan
-            if (!_isLoading && _manifest != null)
-              GestureDetector(
-                onTap: () => setState(() => _showControls = !_showControls),
-                child: InteractiveViewer(
-                  transformationController: _zoomController,
-                  minScale: 1.0,
-                  maxScale: 3.5, // Crisp 3.5x zoom for tables & flowcharts
-                  child: Center(
-                    child: isDesktop
-                        ? DesktopDrmPlayer(
-                            manifest: _manifest!,
-                            currentPage: _currentPage,
-                            onPageChanged: _onPageChanged,
-                            onPlaybackReady: () {},
-                          )
-                        : MobileDrmPlayer(
-                            manifest: _manifest!,
-                            currentPage: _currentPage,
-                            onPageChanged: _onPageChanged,
-                            onPlaybackReady: () {},
-                          ),
-                  ),
-                ),
+    Widget? drmCanvas = (_manifest != null)
+        ? GestureDetector(
+            onTap: () => setState(() => _showControls = !_showControls),
+            child: InteractiveViewer(
+              transformationController: _zoomController,
+              minScale: 1.0,
+              maxScale: 3.5, // Crisp 3.5x zoom for tables & flowcharts
+              child: Center(
+                child: isDesktop
+                    ? DesktopDrmPlayer(
+                        manifest: _manifest!,
+                        currentPage: _currentPage,
+                        onPageChanged: _onPageChanged,
+                        onPlaybackReady: () {},
+                      )
+                    : MobileDrmPlayer(
+                        manifest: _manifest!,
+                        currentPage: _currentPage,
+                        onPageChanged: _onPageChanged,
+                        onPlaybackReady: () {},
+                      ),
               ),
-
-            // 2. Drifting Forensic Watermark (Always Overlaid)
-            DriftingWatermark(
-              identifier: userIdentifier,
-              minSeconds: 20,
-              maxSeconds: 40,
-              opacity: 0.16,
             ),
+          )
+        : null;
 
-            // 3. Loading State
-            if (_isLoading)
-              const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentAmber)),
-                    SizedBox(height: 16),
-                    Text(
-                      'Acquiring Hardware DRM License...',
-                      style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+    Widget mainContentStack = Stack(
+      children: [
+        // 1. DRM Video Frame Canvas with Zoom and Pan (Desktop reading measure or mobile fill)
+        if (!_isLoading && drmCanvas != null)
+          isDesktopMeasure
+              ? Positioned.fill(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 760),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: drmCanvas,
+                      ),
                     ),
-                  ],
-                ),
-              ),
-
-            // 4. Error State (License Denied / Expired)
-            if (_errorMessage != null)
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.all(24),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppTheme.inkCard,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.4)),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.gpp_bad_outlined, color: AppTheme.errorRed, size: 48),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'Content Access Restricted',
-                        style: TextStyle(color: AppTheme.textLight, fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppTheme.textMuted, fontSize: 13, height: 1.4),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Back to Library'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                )
+              : Positioned.fill(child: drmCanvas),
 
-            // 5. Header Overlay (Back Button, Title, Page Indicator, Display Controls)
-            if (_showControls && !_isLoading && _errorMessage == null)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
+        // 2. Drifting Forensic Watermark (Always Overlaid)
+        DriftingWatermark(
+          identifier: userIdentifier,
+          minSeconds: 20,
+          maxSeconds: 40,
+          opacity: 0.16,
+        ),
+
+        // 3. Loading State
+        if (_isLoading)
+          const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentAmber)),
+                SizedBox(height: 16),
+                Text(
+                  'Acquiring Hardware DRM License...',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+
+        // 4. Error State (License Denied / Expired)
+        if (_errorMessage != null)
+          Center(
+            child: Container(
+              margin: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppTheme.inkCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.4)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.gpp_bad_outlined, color: AppTheme.errorRed, size: 48),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Content Access Restricted',
+                    style: TextStyle(color: AppTheme.textLight, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppTheme.textMuted, fontSize: 13, height: 1.4),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Back to Library'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+        // 5. Header Overlay (Back Button, Title, Page Indicator, Display Controls)
+        if (_showControls && !_isLoading && _errorMessage == null)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: isDesktopMeasure ? 760 : double.infinity),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
@@ -337,15 +343,16 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.format_list_bulleted_rounded,
-                          color: themeConfig.textColor,
-                          size: 20,
+                      if (!isDesktopMeasure)
+                        IconButton(
+                          icon: Icon(
+                            Icons.format_list_bulleted_rounded,
+                            color: themeConfig.textColor,
+                            size: 20,
+                          ),
+                          tooltip: 'Table of Contents',
+                          onPressed: () => _openTocDrawer(context, themeConfig),
                         ),
-                        tooltip: 'Table of Contents',
-                        onPressed: () => _openTocDrawer(context, themeConfig),
-                      ),
                       IconButton(
                         icon: Icon(
                           _showReaderControls ? Icons.text_fields_rounded : Icons.tune_rounded,
@@ -375,13 +382,18 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                   ),
                 ),
               ),
+            ),
+          ),
 
-            // 6. Floating Reader Controls Bar (Theme switcher, font stepper, typeface toggle)
-            if (_showControls && _showReaderControls && !_isLoading && _errorMessage == null)
-              Positioned(
-                bottom: 74,
-                left: 0,
-                right: 0,
+        // 6. Floating Reader Controls Bar (Theme switcher, font stepper, typeface toggle)
+        if (_showControls && _showReaderControls && !_isLoading && _errorMessage == null)
+          Positioned(
+            bottom: 74,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: isDesktopMeasure ? 760 : double.infinity),
                 child: SafeArea(
                   top: false,
                   bottom: false,
@@ -391,13 +403,18 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                   ),
                 ),
               ),
+            ),
+          ),
 
-            // 7. Bottom Navigation Controls (Scrubber, Prev, Next)
-            if (_showControls && !_isLoading && _errorMessage == null)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
+        // 7. Bottom Navigation Controls (Scrubber, Prev, Next)
+        if (_showControls && !_isLoading && _errorMessage == null)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: isDesktopMeasure ? 760 : double.infinity),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   decoration: BoxDecoration(
@@ -441,8 +458,44 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+          ),
+      ],
+    );
+
+    return Scaffold(
+      backgroundColor: themeConfig.backgroundColor,
+      drawer: isDesktopMeasure
+          ? null
+          : Drawer(
+              backgroundColor: themeConfig.cardColor,
+              child: NotifyReaderDrawer(
+                chapters: _tocChapters,
+                currentPage: _currentPage,
+                themeConfig: themeConfig,
+                onClose: () => Navigator.of(context).pop(),
+                onSectionSelected: (section) {
+                  _onPageChanged(section.pageNumber);
+                },
+              ),
+            ),
+      body: SafeArea(
+        child: isDesktopMeasure
+            ? Row(
+                children: [
+                  NotifyReaderDrawer(
+                    chapters: _tocChapters,
+                    currentPage: _currentPage,
+                    themeConfig: themeConfig,
+                    isDockedRail: true,
+                    onSectionSelected: (section) {
+                      _onPageChanged(section.pageNumber);
+                    },
+                  ),
+                  Expanded(child: mainContentStack),
+                ],
+              )
+            : mainContentStack,
       ),
     );
   }

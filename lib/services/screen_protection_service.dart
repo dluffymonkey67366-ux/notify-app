@@ -29,7 +29,7 @@ class ScreenProtectionService {
   }
 
   static const MethodChannel _channel = MethodChannel('com.notify.app/security');
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   final StreamController<ViolationEvent> _violationController =
       StreamController<ViolationEvent>.broadcast();
