@@ -41,12 +41,38 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
   int _totalPages = 1;
   bool _showControls = true;
   Timer? _progressDebounceTimer;
+  late List<TocChapter> _tocChapters;
 
   @override
   void initState() {
     super.initState();
+    _tocChapters = TocChapter.defaultChaptersForPart(widget.partId, widget.partTitle);
     _readerSettings.addListener(_onReaderSettingsChanged);
     _initializeReader();
+  }
+
+  void _openTocDrawer(BuildContext context, ReaderThemeConfig themeConfig) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        height: MediaQuery.sizeOf(context).height * 0.75,
+        decoration: BoxDecoration(
+          color: themeConfig.cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: NotifyReaderDrawer(
+          chapters: _tocChapters,
+          currentPage: _currentPage,
+          themeConfig: themeConfig,
+          onClose: () => Navigator.of(ctx).pop(),
+          onSectionSelected: (section) {
+            _onPageChanged(section.pageNumber);
+          },
+        ),
+      ),
+    );
   }
 
   void _onReaderSettingsChanged() {
@@ -168,6 +194,18 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
 
     return Scaffold(
       backgroundColor: themeConfig.backgroundColor,
+      drawer: Drawer(
+        backgroundColor: themeConfig.cardColor,
+        child: NotifyReaderDrawer(
+          chapters: _tocChapters,
+          currentPage: _currentPage,
+          themeConfig: themeConfig,
+          onClose: () => Navigator.of(context).pop(),
+          onSectionSelected: (section) {
+            _onPageChanged(section.pageNumber);
+          },
+        ),
+      ),
       body: SafeArea(
         child: Stack(
           children: [
@@ -298,6 +336,15 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                             ),
                           ],
                         ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.format_list_bulleted_rounded,
+                          color: themeConfig.textColor,
+                          size: 20,
+                        ),
+                        tooltip: 'Table of Contents',
+                        onPressed: () => _openTocDrawer(context, themeConfig),
                       ),
                       IconButton(
                         icon: Icon(

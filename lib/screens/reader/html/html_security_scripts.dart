@@ -122,6 +122,31 @@ class HtmlSecurityScripts {
 ''';
   }
 
+  /// Generates a JavaScript snippet to smoothly scroll to a specific section anchor or heading
+  static String buildScrollToSectionJs(String anchorId) {
+    final cleanId = anchorId.replaceAll("'", "\\'");
+    final searchHeading = cleanId.replaceAll('-', ' ').replaceAll('_', ' ');
+    return '''
+(function() {
+  var el = document.getElementById('$cleanId') ||
+           document.querySelector('[name="$cleanId"]') ||
+           document.querySelector('[data-anchor="$cleanId"]');
+  if (!el) {
+    var headings = document.querySelectorAll('h1, h2, h3, h4, h5, section');
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].textContent.toLowerCase().indexOf('$searchHeading') !== -1) {
+        el = headings[i];
+        break;
+      }
+    }
+  }
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+})();
+''';
+  }
+
   /// Wraps decrypted raw HTML into a secure, self-contained document with responsive CSS variables
   /// matching the user's active theme and typography preferences.
   static String wrapSecureHtml(

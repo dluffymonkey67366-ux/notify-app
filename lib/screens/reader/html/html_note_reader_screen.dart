@@ -56,6 +56,8 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   bool _showControls = true;
+  late List<TocChapter> _tocChapters;
+  String? _activeSectionId;
 
   // Screen capture violation state
   bool _isContentBlanked = false;
@@ -65,8 +67,39 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
   @override
   void initState() {
     super.initState();
+    _tocChapters = TocChapter.defaultChaptersForPart(widget.partId, widget.partTitle);
     _readerSettings.addListener(_onReaderSettingsChanged);
     _initReaderAndProtection();
+  }
+
+  void _onSectionSelected(TocSection section) {
+    setState(() {
+      _activeSectionId = section.id;
+    });
+    final js = HtmlSecurityScripts.buildScrollToSectionJs(section.anchorId);
+    _webViewController?.evaluateJavascript(source: js);
+  }
+
+  void _openTocDrawer(BuildContext context, ReaderThemeConfig themeConfig) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        height: MediaQuery.sizeOf(context).height * 0.75,
+        decoration: BoxDecoration(
+          color: themeConfig.cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: NotifyReaderDrawer(
+          chapters: _tocChapters,
+          activeSectionId: _activeSectionId,
+          themeConfig: themeConfig,
+          onClose: () => Navigator.of(ctx).pop(),
+          onSectionSelected: _onSectionSelected,
+        ),
+      ),
+    );
   }
 
   void _onReaderSettingsChanged() {
@@ -253,6 +286,15 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
         actions: [
           IconButton(
             icon: Icon(
+              Icons.format_list_bulleted_rounded,
+              color: themeConfig.textColor,
+              size: 20,
+            ),
+            tooltip: 'Table of Contents',
+            onPressed: () => _openTocDrawer(context, themeConfig),
+          ),
+          IconButton(
+            icon: Icon(
               _showControls ? Icons.text_fields_rounded : Icons.tune_rounded,
               color: _showControls ? themeConfig.accentColor : themeConfig.textMutedColor,
               size: 20,
@@ -261,6 +303,16 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
             onPressed: () => setState(() => _showControls = !_showControls),
           ),
         ],
+      ),
+      drawer: Drawer(
+        backgroundColor: themeConfig.cardColor,
+        child: NotifyReaderDrawer(
+          chapters: _tocChapters,
+          activeSectionId: _activeSectionId,
+          themeConfig: themeConfig,
+          onClose: () => Navigator.of(context).pop(),
+          onSectionSelected: _onSectionSelected,
+        ),
       ),
       body: SafeArea(
         child: Stack(

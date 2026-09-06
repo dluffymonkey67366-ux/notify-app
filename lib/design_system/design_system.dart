@@ -8,4 +8,5 @@ export 'components/notify_progress_bar.dart';
 export 'components/notify_button.dart';
 export 'components/notify_search_bar.dart';
 export 'components/notify_reader_controls_bar.dart';
+export 'components/notify_reader_drawer.dart';
 export 'reader_theme.dart';
