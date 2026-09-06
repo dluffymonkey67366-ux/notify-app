@@ -5,6 +5,7 @@ import {
 } from "@firebase/rules-unit-testing";
 import type { RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { Timestamp, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { expect } from "chai";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -61,7 +62,7 @@ describe("Notify - Firestore Security Rules Unit Tests", () => {
         order: 3,
       });
 
-      // 3. Seed Part with fullRef
+      // 3. Seed Part Public Metadata (does NOT contain fullRef)
       await setDoc(
         doc(adminDb, `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}`),
         {
@@ -72,6 +73,16 @@ describe("Notify - Firestore Security Rules Unit Tests", () => {
           order: 1,
           fileType: "html",
           previewRef: `content/preview/${PART_ID}.html`,
+        }
+      );
+
+      // 4. Seed Part Protected Content (contains fullRef)
+      await setDoc(
+        doc(
+          adminDb,
+          `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}/protected/content`
+        ),
+        {
           fullRef: `content/full/${PART_ID}.html`,
         }
       );
@@ -112,28 +123,40 @@ describe("Notify - Firestore Security Rules Unit Tests", () => {
       const packageDoc = doc(aliceDb, `packages/pkg_law_ch3`);
       await assertFails(updateDoc(packageDoc, { pricing: { monthly: 1 } }));
     });
-  });
 
-  describe("2. Protected Content (parts / fullRef) Access Control", () => {
-    it("DENIES unauthenticated users from reading a part containing fullRef", async () => {
+    it("allows unauthenticated users to read parts catalog metadata (title, order, previewRef)", async () => {
       const unauthDb = testEnv.unauthenticatedContext().firestore();
       const partDoc = doc(
         unauthDb,
         `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}`
       );
-      await assertFails(getDoc(partDoc));
+      const snap = await assertSucceeds(getDoc(partDoc));
+      expect(snap.data()?.title).to.equal("Part A: Contract of Indemnity and Guarantee");
+      expect(snap.data()?.previewRef).to.equal(`content/preview/${PART_ID}.html`);
+      expect(snap.data()?.fullRef).to.be.undefined;
     });
+  });
 
-    it("DENIES authenticated users without a purchase from reading a part containing fullRef", async () => {
-      const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
-      const partDoc = doc(
-        aliceDb,
-        `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}`
+  describe("2. Protected Content (parts/protected/content) Access Control", () => {
+    it("DENIES unauthenticated users from reading protected content containing fullRef", async () => {
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+      const protectedDoc = doc(
+        unauthDb,
+        `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}/protected/content`
       );
-      await assertFails(getDoc(partDoc));
+      await assertFails(getDoc(protectedDoc));
     });
 
-    it("DENIES authenticated users with an EXPIRED purchase from reading the part", async () => {
+    it("DENIES authenticated users without a purchase from reading protected content", async () => {
+      const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+      const protectedDoc = doc(
+        aliceDb,
+        `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}/protected/content`
+      );
+      await assertFails(getDoc(protectedDoc));
+    });
+
+    it("DENIES authenticated users with an EXPIRED purchase from reading protected content", async () => {
       // Seed an expired purchase for Alice
       const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // 1 day ago
       await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -149,14 +172,14 @@ describe("Notify - Firestore Security Rules Unit Tests", () => {
       });
 
       const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
-      const partDoc = doc(
+      const protectedDoc = doc(
         aliceDb,
-        `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}`
+        `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}/protected/content`
       );
-      await assertFails(getDoc(partDoc));
+      await assertFails(getDoc(protectedDoc));
     });
 
-    it("ALLOWS authenticated users with a VALID, NON-EXPIRED purchase to read the part", async () => {
+    it("ALLOWS authenticated users with a VALID, NON-EXPIRED purchase to read protected content", async () => {
       // Seed an active purchase for Alice (expires in 30 days)
       const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -172,14 +195,15 @@ describe("Notify - Firestore Security Rules Unit Tests", () => {
       });
 
       const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
-      const partDoc = doc(
+      const protectedDoc = doc(
         aliceDb,
-        `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}`
+        `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}/protected/content`
       );
-      await assertSucceeds(getDoc(partDoc));
+      const snap = await assertSucceeds(getDoc(protectedDoc));
+      expect(snap.data()?.fullRef).to.equal(`content/full/${PART_ID}.html`);
     });
 
-    it("DENIES user Bob from reading the part when only Alice purchased it", async () => {
+    it("DENIES user Bob from reading protected content when only Alice purchased it", async () => {
       // Alice has active purchase, Bob has none
       const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -192,14 +216,14 @@ describe("Notify - Firestore Security Rules Unit Tests", () => {
       });
 
       const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
-      const partDoc = doc(
+      const protectedDoc = doc(
         bobDb,
-        `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}`
+        `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}/protected/content`
       );
-      await assertFails(getDoc(partDoc));
+      await assertFails(getDoc(protectedDoc));
     });
 
-    it("ALLOWS access when user has purchased parent Lesson package", async () => {
+    it("ALLOWS access to protected content when user has purchased parent Lesson package", async () => {
       // Seed lesson-level purchase for Bob
       const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -212,11 +236,12 @@ describe("Notify - Firestore Security Rules Unit Tests", () => {
       });
 
       const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
-      const partDoc = doc(
+      const protectedDoc = doc(
         bobDb,
-        `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}`
+        `subjects/${SUBJECT_ID}/lessons/${LESSON_ID}/parts/${PART_ID}/protected/content`
       );
-      await assertSucceeds(getDoc(partDoc));
+      const snap = await assertSucceeds(getDoc(protectedDoc));
+      expect(snap.data()?.fullRef).to.equal(`content/full/${PART_ID}.html`);
     });
   });
 

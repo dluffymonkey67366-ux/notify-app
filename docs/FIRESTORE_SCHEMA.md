@@ -10,6 +10,7 @@ This document details the complete Firestore schema, collection hierarchies, doc
 subjects/{subjectId}
   └── lessons/{lessonId}
         └── parts/{partId}
+              └── protected/content
 
 packages/{packageId}
 purchases/{purchaseId}
@@ -58,7 +59,7 @@ Groups related parts into a chapter or module.
 ```
 
 ### `subjects/{subjectId}/lessons/{lessonId}/parts/{partId}`
-Smallest content unit (HTML or PDF). Protected by security rules; `fullRef` cannot be read without a valid non-expired purchase.
+Smallest catalog content metadata unit (HTML or PDF). Publicly readable by anyone for catalog browsing, titles, order, and free trimmed previews. Does NOT expose `fullRef`.
 
 ```json
 {
@@ -69,8 +70,18 @@ Smallest content unit (HTML or PDF). Protected by security rules; `fullRef` cann
   "order": 1,
   "fileType": "html",
   "previewRef": "content/preview/part_3a_indemnity_guarantee.html",
-  "fullRef": "content/full/part_3a_indemnity_guarantee.html",
   "createdAt": "2026-09-06T00:00:00Z",
+  "updatedAt": "2026-09-06T00:00:00Z"
+}
+```
+
+### `subjects/{subjectId}/lessons/{lessonId}/parts/{partId}/protected/content`
+Protected content subdocument containing `fullRef` and protected asset paths.
+NON-NEGOTIABLE: Protected by security rules; requires a valid non-expired purchase covering the part, lesson, or subject.
+
+```json
+{
+  "fullRef": "content/full/part_3a_indemnity_guarantee.html",
   "updatedAt": "2026-09-06T00:00:00Z"
 }
 ```

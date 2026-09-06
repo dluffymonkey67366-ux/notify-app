@@ -259,7 +259,7 @@ class CatalogService {
     return List.unmodifiable(_mockLessons[subjectId] ?? []);
   }
 
-  /// 3. Fetch Parts for a given Lesson
+  /// 3. Fetch Parts for a given Lesson (Public catalog metadata)
   Future<List<Part>> getParts(String subjectId, String lessonId) async {
     try {
       final snap = await _firestore
@@ -274,9 +274,46 @@ class CatalogService {
         return snap.docs.map((doc) => Part.fromMap(doc.data(), doc.id)).toList();
       }
     } catch (e) {
+      // Re-throw permission-denied errors so rule violations are never silently swallowed
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        rethrow;
+      }
       debugPrint("Using local parts catalog fallback: $e");
     }
     return List.unmodifiable(_mockParts[lessonId] ?? []);
+  }
+
+  /// Fetches the protected content subdocument for a part once access is verified.
+  /// Path: subjects/{subjectId}/lessons/{lessonId}/parts/{partId}/protected/content
+  /// Requires hasActivePurchase(subjectId, lessonId, partId) under Firestore rules.
+  Future<String?> getPartFullRef({
+    required String subjectId,
+    required String lessonId,
+    required String partId,
+  }) async {
+    try {
+      final doc = await _firestore
+          .collection('subjects')
+          .doc(subjectId)
+          .collection('lessons')
+          .doc(lessonId)
+          .collection('parts')
+          .doc(partId)
+          .collection('protected')
+          .doc('content')
+          .get();
+      if (doc.exists) {
+        return doc.data()?['fullRef'] as String?;
+      }
+    } catch (e) {
+      debugPrint("Error fetching protected fullRef: $e");
+    }
+    // Fallback to local mock if available (for offline testing)
+    final parts = _mockParts[lessonId] ?? [];
+    for (final p in parts) {
+      if (p.id == partId) return p.fullRef;
+    }
+    return null;
   }
 
   /// 4. Fetch Packages covering a specific Part, Lesson, Subject, or Bundle

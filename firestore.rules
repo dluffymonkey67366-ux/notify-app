@@ -40,14 +40,14 @@ service cloud.firestore {
         allow read: if true;
         allow write: if false;
 
-        // Parts subcollection: Contains fullRef.
-        // NON-NEGOTIABLE: No client can read a part or fullRef without a valid non-expired purchase.
+        // Parts subcollection: Public metadata (title, order, previewRef, fileType) readable by anyone
         match /parts/{partId} {
-          allow read: if hasActivePurchase(subjectId, lessonId, partId);
+          allow read: if true;
           allow write: if false;
 
-          // Nested content or protected assets
-          match /{allSubcollections=**} {
+          // Protected content subcollection (e.g. protected/content containing fullRef):
+          // NON-NEGOTIABLE: Requires valid non-expired purchase.
+          match /protected/{docId} {
             allow read: if hasActivePurchase(subjectId, lessonId, partId);
             allow write: if false;
           }
