@@ -28,8 +28,8 @@ class CatalogService {
   factory CatalogService() => _instance;
   CatalogService._internal();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+  FirebaseAuth get _auth => FirebaseAuth.instance;
 
   // Local cache for granted purchases (ensures immediate UI reaction and offline/dev testability)
   final Map<String, PurchaseRecord> _localPurchases = {};

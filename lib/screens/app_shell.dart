@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../design_system/design_system.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
+import 'catalog/subject_list_screen.dart';
 import 'library/library_screen.dart';
 import 'reader/html/html_note_reader_screen.dart';
+import 'reader/pdf/drm_pdf_reader_screen.dart';
 
 /// AppShell: Adaptive navigation featuring Bottom Navigation Bar for compact/mobile screens
 /// and an Editorial Side Navigation Rail for tablets, desktops, and web.
@@ -34,7 +36,7 @@ class _AppShellState extends State<AppShell> {
     final pages = [
       const LibraryScreen(),
       const _StudyReaderOverviewScreen(),
-      const _CourseCatalogScreen(),
+      const SubjectListScreen(),
       const _StudentProfileScreen(),
     ];
 
@@ -413,17 +415,21 @@ class _StudyReaderOverviewScreen extends StatelessWidget {
                   style: TextStyle(color: theme.textMuted, fontSize: 13),
                 ),
                 const SizedBox(height: 16),
-                NotifyButton(
-                  label: 'Launch Reader Workspace',
-                  leadingIcon: Icons.menu_book_rounded,
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const HtmlNoteReaderScreen(
-                          partId: 'part_3a_indemnity_guarantee',
-                          partTitle: 'Part A: Contract of Indemnity and Guarantee',
-                          subjectTitle: 'CA Inter - Corporate and Other Laws',
-                          initialRawHtml: '''
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  children: [
+                    NotifyButton(
+                      label: 'Launch Reader Workspace',
+                      leadingIcon: Icons.menu_book_rounded,
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const HtmlNoteReaderScreen(
+                              partId: 'part_3a_indemnity_guarantee',
+                              partTitle: 'Part A: Contract of Indemnity and Guarantee',
+                              subjectTitle: 'CA Inter - Corporate and Other Laws',
+                              initialRawHtml: '''
 <h2>Chapter 3: The Indian Contract Act, 1872</h2>
 <h3>Part A: Contract of Indemnity and Guarantee</h3>
 <p><strong>Section 124: Contract of Indemnity</strong></p>
@@ -431,10 +437,28 @@ class _StudyReaderOverviewScreen extends StatelessWidget {
 <p><strong>Section 126: Contract of Guarantee</strong></p>
 <p>A contract of guarantee is a contract to perform the promise, or discharge the liability, of a third person in case of his default.</p>
 ''',
-                        ),
-                      ),
-                    );
-                  },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    NotifyButton(
+                      label: 'Open DRM PDF Stream',
+                      variant: NotifyButtonVariant.secondary,
+                      leadingIcon: Icons.lock_clock_rounded,
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const DrmPdfReaderScreen(
+                              partId: 'part_3a_indemnity_guarantee',
+                              partTitle: 'Part A: Contract of Indemnity and Guarantee (DRM Stream)',
+                              subjectTitle: 'CA Inter - Corporate and Other Laws',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -476,131 +500,6 @@ class _StudyReaderOverviewScreen extends StatelessWidget {
               ),
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Third screen: Course Catalog
-class _CourseCatalogScreen extends StatelessWidget {
-  const _CourseCatalogScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.notifyTheme;
-
-    return Scaffold(
-      backgroundColor: theme.bg,
-      appBar: AppBar(
-        title: const Text('ICAI Study Catalog'),
-        backgroundColor: theme.bgDarker,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          NotifyCard(
-            isElevated: true,
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                const Icon(Icons.school_rounded, color: NotifyColors.amber, size: 36),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'ICAI New Scheme 2024 Course Materials',
-                        style: TextStyle(
-                          color: theme.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Access all official modules, amendment notes, and RTPs',
-                        style: TextStyle(color: theme.textMuted, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Available Courses',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: theme.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildCourseItem(
-            title: 'CA Final - Financial Reporting (FR)',
-            subtitle: 'Complete Ind AS masterclass by top faculty • 300+ hrs',
-            price: 'Enrolled in Group 1',
-            badge: 'Active',
-            badgeColor: NotifyColors.emerald,
-            theme: theme,
-          ),
-          const SizedBox(height: 10),
-          _buildCourseItem(
-            title: 'CA Final - Advanced Auditing & Professional Ethics',
-            subtitle: 'New standards on auditing & ethics code 2024 edition',
-            price: '₹ 8,499',
-            badge: 'New Scheme',
-            badgeColor: NotifyColors.amber,
-            theme: theme,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCourseItem({
-    required String title,
-    required String subtitle,
-    required String price,
-    required String badge,
-    required Color badgeColor,
-    required NotifyThemeExtension theme,
-  }) {
-    return NotifyCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              NotifyTagBadge(label: badge, color: badgeColor),
-              Text(
-                price,
-                style: TextStyle(
-                  color: theme.accentAmber,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: TextStyle(
-              color: theme.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(color: theme.textMuted, fontSize: 12.5),
           ),
         ],
       ),
