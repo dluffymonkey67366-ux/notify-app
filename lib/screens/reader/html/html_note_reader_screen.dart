@@ -217,7 +217,10 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
       _triggerViolationReaction(event);
     });
 
-    // 3. Load decrypted HTML content strictly from AES-256 local encrypted cache
+    // 3. Ensure offline encrypted cache schema is migrated (v1 -> v2)
+    await _cacheService.ensureCacheVersionMigrated();
+
+    // 4. Load decrypted HTML content strictly from AES-256 local encrypted cache
     await _loadDecryptedNoteContent();
   }
 

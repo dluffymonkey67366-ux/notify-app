@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/reader_annotation_models.dart';
 import 'crypto_utils.dart';
 
@@ -22,8 +23,15 @@ class EncryptedCacheService {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   static const String _storageKeyAes = 'notify_note_encryption_key_aes256';
 
+  /// Current schema version for offline AES-encrypted cache files.
+  /// Version 1: Legacy cache created prior to the FIPS-197 AES S-box fix.
+  /// Version 2: Standard AES-256 cache with corrected bijective S-box.
+  static const int currentCacheVersion = 2;
+  static const String _cacheVersionKey = 'notify_encrypted_cache_schema_version';
+
   Uint8List? _cachedKey;
   String? _customCacheDirPath;
+  bool _migrationChecked = false;
 
   @visibleForTesting
   void setCustomCacheDir(String path) {
@@ -33,6 +41,45 @@ class EncryptedCacheService {
   @visibleForTesting
   void setCustomKey(Uint8List key) {
     _cachedKey = key;
+  }
+
+  @visibleForTesting
+  void resetMigrationForTesting() {
+    _migrationChecked = false;
+  }
+
+  /// One-time cache migration: Invalidate and purge stale AES encrypted files
+  /// created prior to the FIPS-197 AES S-box fix (v1 -> v2).
+  Future<void> ensureCacheVersionMigrated() async {
+    if (_migrationChecked) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedVersion = prefs.getInt(_cacheVersionKey) ?? 1;
+      if (storedVersion < currentCacheVersion) {
+        debugPrint(
+          'EncryptedCacheService: Upgrading cache from v$storedVersion to v$currentCacheVersion. '
+          'Purging legacy/incompatible encrypted cache files.',
+        );
+        final rawDir = await _resolveCacheDirectoryRaw();
+        if (await rawDir.exists()) {
+          await rawDir.delete(recursive: true);
+          await rawDir.create(recursive: true);
+        }
+        await prefs.setInt(_cacheVersionKey, currentCacheVersion);
+      }
+    } catch (e) {
+      debugPrint('EncryptedCacheService: Cache migration check error: $e');
+    } finally {
+      _migrationChecked = true;
+    }
+  }
+
+  Future<Directory> _resolveCacheDirectoryRaw() async {
+    if (_customCacheDirPath != null) {
+      return Directory(_customCacheDirPath!);
+    }
+    final tempDir = Directory.systemTemp;
+    return Directory('${tempDir.path}/notify_secure_notes_cache');
   }
 
   /// Retrieves or cryptographically generates the 32-byte (256-bit) AES key
@@ -56,16 +103,10 @@ class EncryptedCacheService {
     return _cachedKey!;
   }
 
-  /// Resolves the cache directory on disk
+  /// Resolves the cache directory on disk, ensuring schema migration has executed.
   Future<Directory> _getCacheDirectory() async {
-    Directory dir;
-    if (_customCacheDirPath != null) {
-      dir = Directory(_customCacheDirPath!);
-    } else {
-      final tempDir = Directory.systemTemp;
-      dir = Directory('${tempDir.path}/notify_secure_notes_cache');
-    }
-
+    await ensureCacheVersionMigrated();
+    final dir = await _resolveCacheDirectoryRaw();
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
@@ -111,7 +152,8 @@ class EncryptedCacheService {
   }
 
   /// Reads and decrypts cached note content.
-  /// Returns the decrypted HTML string, or null if not cached.
+  /// Returns the decrypted HTML string, or null if not cached or if the cached
+  /// file was corrupted/incompatible (in which case it is purged for clean re-download).
   Future<String?> readDecryptedContent(String partId) async {
     final cacheDir = await _getCacheDirectory();
     final file = _getCacheFile(cacheDir, partId);
@@ -120,25 +162,35 @@ class EncryptedCacheService {
       return null;
     }
 
-    final diskPayload = await file.readAsBytes();
-    if (diskPayload.length < 16 + Aes256Cbc.blockSize) {
-      throw const FormatException('Cached file is corrupted or truncated.');
+    try {
+      final diskPayload = await file.readAsBytes();
+      if (diskPayload.length < 16 + Aes256Cbc.blockSize) {
+        await removeCachedContent(partId);
+        return null;
+      }
+
+      // Extract IV and ciphertext
+      final iv = Uint8List.fromList(diskPayload.sublist(0, 16));
+      final cipherBytes = Uint8List.fromList(diskPayload.sublist(16));
+
+      final key = await getOrCreateEncryptionKey();
+
+      // Decrypt using AES-256
+      final plainBytes = Aes256Cbc.decrypt(
+        cipherBytes: cipherBytes,
+        key: key,
+        iv: iv,
+      );
+
+      return utf8.decode(plainBytes);
+    } catch (e) {
+      debugPrint(
+        'EncryptedCacheService: Failed to decrypt cached content for partId=$partId ($e). '
+        'Purging corrupted or stale cache file to trigger fresh fetch.',
+      );
+      await removeCachedContent(partId);
+      return null;
     }
-
-    // Extract IV and ciphertext
-    final iv = Uint8List.fromList(diskPayload.sublist(0, 16));
-    final cipherBytes = Uint8List.fromList(diskPayload.sublist(16));
-
-    final key = await getOrCreateEncryptionKey();
-
-    // Decrypt using AES-256
-    final plainBytes = Aes256Cbc.decrypt(
-      cipherBytes: cipherBytes,
-      key: key,
-      iv: iv,
-    );
-
-    return utf8.decode(plainBytes);
   }
 
   /// Returns the raw encrypted disk file bytes without decryption.
@@ -183,7 +235,7 @@ class EncryptedCacheService {
   }
 
   /// Reads and decrypts annotations bundle for a part.
-  /// Returns NoteAnnotationsBundle or null if not yet saved.
+  /// Returns NoteAnnotationsBundle or null if not yet saved or if unreadable.
   Future<NoteAnnotationsBundle?> readDecryptedAnnotations(String partId) async {
     final cacheDir = await _getCacheDirectory();
     final file = _getAnnotationsFile(cacheDir, partId);
@@ -192,23 +244,33 @@ class EncryptedCacheService {
       return null;
     }
 
-    final diskPayload = await file.readAsBytes();
-    if (diskPayload.length < 16 + Aes256Cbc.blockSize) {
+    try {
+      final diskPayload = await file.readAsBytes();
+      if (diskPayload.length < 16 + Aes256Cbc.blockSize) {
+        if (await file.exists()) await file.delete();
+        return null;
+      }
+
+      final iv = Uint8List.fromList(diskPayload.sublist(0, 16));
+      final cipherBytes = Uint8List.fromList(diskPayload.sublist(16));
+      final key = await getOrCreateEncryptionKey();
+
+      final plainBytes = Aes256Cbc.decrypt(
+        cipherBytes: cipherBytes,
+        key: key,
+        iv: iv,
+      );
+
+      final jsonStr = utf8.decode(plainBytes);
+      return NoteAnnotationsBundle.fromJson(jsonStr);
+    } catch (e) {
+      debugPrint(
+        'EncryptedCacheService: Failed to decrypt annotations for partId=$partId ($e). '
+        'Purging stale/incompatible annotations.',
+      );
+      if (await file.exists()) await file.delete();
       return null;
     }
-
-    final iv = Uint8List.fromList(diskPayload.sublist(0, 16));
-    final cipherBytes = Uint8List.fromList(diskPayload.sublist(16));
-    final key = await getOrCreateEncryptionKey();
-
-    final plainBytes = Aes256Cbc.decrypt(
-      cipherBytes: cipherBytes,
-      key: key,
-      iv: iv,
-    );
-
-    final jsonStr = utf8.decode(plainBytes);
-    return NoteAnnotationsBundle.fromJson(jsonStr);
   }
 
   /// Checks whether encrypted cache exists for a part
