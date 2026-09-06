@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import '../../../design_system/reader_theme.dart';
 import 'html_security_scripts.dart';
 
 /// Embedded Chromium view for Desktop (Windows, macOS, Linux).
@@ -9,11 +10,21 @@ import 'html_security_scripts.dart';
 class DesktopChromiumPlayer extends StatefulWidget {
   final String htmlContent;
   final VoidCallback? onContentLoaded;
+  final VoidCallback? onCanvasTap;
+  final void Function(InAppWebViewController controller)? onControllerCreated;
+  final ReaderThemeConfig themeConfig;
+  final double fontSize;
+  final bool isSerif;
 
   const DesktopChromiumPlayer({
     super.key,
     required this.htmlContent,
     this.onContentLoaded,
+    this.onCanvasTap,
+    this.onControllerCreated,
+    this.themeConfig = ReaderThemeConfig.ink,
+    this.fontSize = 16.0,
+    this.isSerif = true,
   });
 
   @override
@@ -27,19 +38,38 @@ class _DesktopChromiumPlayerState extends State<DesktopChromiumPlayer> {
   void didUpdateWidget(DesktopChromiumPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.htmlContent != widget.htmlContent) {
-      final secureHtml = HtmlSecurityScripts.wrapSecureHtml(widget.htmlContent);
+      final secureHtml = HtmlSecurityScripts.wrapSecureHtml(
+        widget.htmlContent,
+        themeConfig: widget.themeConfig,
+        fontSize: widget.fontSize,
+        isSerif: widget.isSerif,
+      );
       _webViewController?.loadData(
         data: secureHtml,
         mimeType: 'text/html',
         encoding: 'utf-8',
         baseUrl: WebUri('about:blank'),
       );
+    } else if (oldWidget.themeConfig != widget.themeConfig ||
+        oldWidget.fontSize != widget.fontSize ||
+        oldWidget.isSerif != widget.isSerif) {
+      final js = HtmlSecurityScripts.buildUpdateStyleJs(
+        themeConfig: widget.themeConfig,
+        fontSize: widget.fontSize,
+        isSerif: widget.isSerif,
+      );
+      _webViewController?.evaluateJavascript(source: js);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final secureHtml = HtmlSecurityScripts.wrapSecureHtml(widget.htmlContent);
+    final secureHtml = HtmlSecurityScripts.wrapSecureHtml(
+      widget.htmlContent,
+      themeConfig: widget.themeConfig,
+      fontSize: widget.fontSize,
+      isSerif: widget.isSerif,
+    );
 
     return InAppWebView(
       initialData: InAppWebViewInitialData(
@@ -57,7 +87,7 @@ class _DesktopChromiumPlayerState extends State<DesktopChromiumPlayer> {
         supportZoom: true,
         verticalScrollBarEnabled: true,
         horizontalScrollBarEnabled: true,
-        transparentBackground: false,
+        transparentBackground: true,
       ),
       initialUserScripts: UnmodifiableListView<UserScript>([
         UserScript(
@@ -71,6 +101,13 @@ class _DesktopChromiumPlayerState extends State<DesktopChromiumPlayer> {
       ]),
       onWebViewCreated: (controller) {
         _webViewController = controller;
+        widget.onControllerCreated?.call(controller);
+        controller.addJavaScriptHandler(
+          handlerName: 'onCanvasTap',
+          callback: (args) {
+            widget.onCanvasTap?.call();
+          },
+        );
       },
       onLoadStop: (controller, url) async {
         // Enforce security injection after initial DOM load
@@ -95,3 +132,4 @@ class _DesktopChromiumPlayerState extends State<DesktopChromiumPlayer> {
     );
   }
 }
+

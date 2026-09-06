@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../design_system/design_system.dart';
 import '../../models/catalog_models.dart';
 import '../../services/catalog_service.dart';
-import '../../theme/app_theme.dart';
 import 'part_detail_screen.dart';
 
 /// Screen displaying parts belonging to a selected lesson.
@@ -56,44 +56,62 @@ class _PartListScreenState extends State<PartListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.notifyTheme;
+
     return Scaffold(
-      backgroundColor: AppTheme.ink,
+      backgroundColor: theme.bg,
       appBar: AppBar(
-        title: Text(widget.lesson.title),
+        backgroundColor: theme.bgDarker,
+        iconTheme: IconThemeData(color: theme.textPrimary),
+        title: Text(
+          widget.lesson.title,
+          style: TextStyle(
+            color: theme.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            fontFamily: NotifyTypography.serifFamily,
+          ),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.accentAmber))
+          ? Center(child: CircularProgressIndicator(color: theme.accentAmber))
           : RefreshIndicator(
-              color: AppTheme.accentAmber,
+              color: theme.accentAmber,
               onRefresh: _loadParts,
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
                   // Lesson Overview Header
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.inkCard,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white12),
-                    ),
+                  NotifyCard(
+                    isElevated: true,
+                    accentStripeColor: theme.accentAmber,
+                    padding: const EdgeInsets.all(18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           widget.subject.title,
-                          style: const TextStyle(color: AppTheme.accentAmber, fontSize: 12, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: theme.accentAmber,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           widget.lesson.title,
-                          style: const TextStyle(color: AppTheme.textLight, fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: theme.textPrimary,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: NotifyTypography.serifFamily,
+                          ),
                         ),
                         if (widget.lesson.description != null) ...[
                           const SizedBox(height: 6),
                           Text(
                             widget.lesson.description!,
-                            style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                            style: TextStyle(color: theme.textMuted, fontSize: 13, height: 1.4),
                           ),
                         ],
                       ],
@@ -104,108 +122,40 @@ class _PartListScreenState extends State<PartListScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Lesson Parts & Notes',
                         style: TextStyle(
-                          color: AppTheme.textLight,
+                          color: theme.textPrimary,
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         '${_parts.length} parts',
-                        style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                        style: TextStyle(color: theme.textMuted, fontSize: 12),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
 
                   if (_parts.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Center(
                         child: Text(
                           'No parts available in this lesson yet.',
-                          style: TextStyle(color: AppTheme.textMuted),
+                          style: TextStyle(color: theme.textMuted),
                         ),
                       ),
                     )
                   else
                     ..._parts.map((part) {
                       final hasAccess = _accessMap[part.id] ?? false;
+                      final typeColor = part.isPdf ? NotifyColors.coral : theme.accentAmber;
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.inkCard,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: hasAccess
-                                ? AppTheme.accentTeal.withValues(alpha: 0.4)
-                                : Colors.white12,
-                          ),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          leading: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: part.isPdf
-                                  ? AppTheme.accentCoral.withValues(alpha: 0.15)
-                                  : AppTheme.accentAmber.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              part.isPdf ? Icons.picture_as_pdf : Icons.article,
-                              color: part.isPdf ? AppTheme.accentCoral : AppTheme.accentAmber,
-                              size: 22,
-                            ),
-                          ),
-                          title: Text(
-                            part.title,
-                            style: const TextStyle(
-                              color: AppTheme.textLight,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white10,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    part.isPdf ? 'PDF DRM' : 'HTML Note',
-                                    style: const TextStyle(color: AppTheme.textMuted, fontSize: 10),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: hasAccess
-                                        ? AppTheme.accentTeal.withValues(alpha: 0.2)
-                                        : AppTheme.accentAmber.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    hasAccess ? 'UNLOCKED' : 'FREE PREVIEW',
-                                    style: TextStyle(
-                                      color: hasAccess ? AppTheme.accentTeal : AppTheme.accentAmber,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: NotifyCard(
                           onTap: () async {
                             await Navigator.of(context).push(
                               MaterialPageRoute(
@@ -218,6 +168,62 @@ class _PartListScreenState extends State<PartListScreen> {
                             );
                             _loadParts();
                           },
+                          accentStripeColor: hasAccess ? theme.accentTeal : null,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: typeColor.withValues(alpha: 0.14),
+                                  borderRadius: NotifyRadius.md,
+                                  border: Border.all(
+                                    color: typeColor.withValues(alpha: 0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Icon(
+                                  part.isPdf ? Icons.picture_as_pdf_rounded : Icons.article_rounded,
+                                  color: typeColor,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      part.title,
+                                      style: TextStyle(
+                                        color: theme.textPrimary,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      children: [
+                                        NotifyTagBadge(
+                                          label: part.isPdf ? 'PDF DRM' : 'HTML Note',
+                                          color: typeColor,
+                                        ),
+                                        NotifyTagBadge(
+                                          label: hasAccess ? 'UNLOCKED' : 'FREE PREVIEW',
+                                          color: hasAccess ? theme.accentTeal : theme.accentAmber,
+                                          icon: hasAccess ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(Icons.arrow_forward_ios_rounded, color: theme.textMuted, size: 14),
+                            ],
+                          ),
                         ),
                       );
                     }),

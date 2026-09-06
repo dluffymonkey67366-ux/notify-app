@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../design_system/design_system.dart';
 import '../../models/catalog_models.dart';
 import '../../services/catalog_service.dart';
-import '../../theme/app_theme.dart';
 import 'part_list_screen.dart';
 
 /// Screen displaying lessons/chapters for a selected subject.
@@ -42,62 +42,57 @@ class _LessonListScreenState extends State<LessonListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.notifyTheme;
+
     return Scaffold(
-      backgroundColor: AppTheme.ink,
+      backgroundColor: theme.bg,
       appBar: AppBar(
-        title: Text(widget.subject.title),
+        backgroundColor: theme.bgDarker,
+        iconTheme: IconThemeData(color: theme.textPrimary),
+        title: Text(
+          widget.subject.title,
+          style: TextStyle(
+            color: theme.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            fontFamily: NotifyTypography.serifFamily,
+          ),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.accentAmber))
+          ? Center(child: CircularProgressIndicator(color: theme.accentAmber))
           : RefreshIndicator(
-              color: AppTheme.accentAmber,
+              color: theme.accentAmber,
               onRefresh: _loadLessons,
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
                   // Subject Overview Header
-                  Container(
+                  NotifyCard(
+                    isElevated: true,
+                    accentStripeColor: theme.accentAmber,
                     padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppTheme.inkCard,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.accentAmber.withValues(alpha: 0.3)),
-                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppTheme.accentAmber.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '${widget.subject.category} • ${widget.subject.level}',
-                                style: const TextStyle(
-                                  color: AppTheme.accentAmber,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ],
+                        NotifyTagBadge(
+                          label: '${widget.subject.category} • ${widget.subject.level}',
+                          color: theme.accentAmber,
                         ),
                         const SizedBox(height: 10),
                         Text(
                           widget.subject.title,
-                          style: const TextStyle(
-                            color: AppTheme.textLight,
+                          style: TextStyle(
+                            color: theme.textPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
+                            fontFamily: NotifyTypography.serifFamily,
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           widget.subject.description,
-                          style: const TextStyle(color: AppTheme.textMuted, fontSize: 13, height: 1.4),
+                          style: TextStyle(color: theme.textMuted, fontSize: 13, height: 1.45),
                         ),
                       ],
                     ),
@@ -107,81 +102,37 @@ class _LessonListScreenState extends State<LessonListScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Chapters / Modules',
                         style: TextStyle(
-                          color: AppTheme.textLight,
+                          color: theme.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         '${_lessons.length} chapters',
-                        style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                        style: TextStyle(color: theme.textMuted, fontSize: 12),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
 
                   if (_lessons.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Center(
                         child: Text(
                           'No lessons found for this subject.',
-                          style: TextStyle(color: AppTheme.textMuted),
+                          style: TextStyle(color: theme.textMuted),
                         ),
                       ),
                     )
                   else
                     ..._lessons.map((lesson) {
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.inkCard,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          leading: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppTheme.accentAmber.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${lesson.order}',
-                                style: const TextStyle(
-                                  color: AppTheme.accentAmber,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            lesson.title,
-                            style: const TextStyle(
-                              color: AppTheme.textLight,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          subtitle: lesson.description != null
-                              ? Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    lesson.description!,
-                                    style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                )
-                              : null,
-                          trailing: const Icon(Icons.arrow_forward_ios, color: AppTheme.textMuted, size: 14),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: NotifyCard(
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
@@ -192,6 +143,59 @@ class _LessonListScreenState extends State<LessonListScreen> {
                               ),
                             );
                           },
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: theme.accentAmber.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: theme.accentAmber.withValues(alpha: 0.35),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${lesson.order}',
+                                    style: TextStyle(
+                                      color: theme.accentAmber,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      lesson.title,
+                                      style: TextStyle(
+                                        color: theme.textPrimary,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14.5,
+                                      ),
+                                    ),
+                                    if (lesson.description != null) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        lesson.description!,
+                                        style: TextStyle(color: theme.textMuted, fontSize: 12),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(Icons.arrow_forward_ios_rounded, color: theme.textMuted, size: 14),
+                            ],
+                          ),
                         ),
                       );
                     }),

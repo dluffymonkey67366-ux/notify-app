@@ -8,6 +8,7 @@ import '../../../services/auth_service.dart';
 import '../../../services/drm_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/drifting_watermark.dart';
+import '../../../design_system/design_system.dart';
 import 'desktop_drm_player.dart';
 import 'mobile_drm_player.dart';
 
@@ -30,6 +31,7 @@ class DrmPdfReaderScreen extends StatefulWidget {
 class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
   final DrmService _drmService = DrmService();
   final TransformationController _zoomController = TransformationController();
+  final ReaderSettingsController _readerSettings = ReaderSettingsController();
 
   DrmPdfManifest? _manifest;
   bool _isLoading = true;
@@ -43,7 +45,12 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
   @override
   void initState() {
     super.initState();
+    _readerSettings.addListener(_onReaderSettingsChanged);
     _initializeReader();
+  }
+
+  void _onReaderSettingsChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _initializeReader() async {
@@ -139,8 +146,11 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
     );
   }
 
+  bool _showReaderControls = false;
+
   @override
   void dispose() {
+    _readerSettings.removeListener(_onReaderSettingsChanged);
     _progressDebounceTimer?.cancel();
     _zoomController.dispose();
     super.dispose();
@@ -151,12 +161,13 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
     final authService = Provider.of<AuthService>(context, listen: false);
     final user = authService.currentUser;
     final userIdentifier = user?.email ?? user?.phoneNumber ?? "CA-STUDENT";
+    final themeConfig = _readerSettings.themeConfig;
 
     // Determine platform for player dispatch
     final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
     return Scaffold(
-      backgroundColor: AppTheme.inkDarker,
+      backgroundColor: themeConfig.backgroundColor,
       body: SafeArea(
         child: Stack(
           children: [
@@ -246,7 +257,7 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                 ),
               ),
 
-            // 5. Header Overlay (Back Button, Title, Page Indicator)
+            // 5. Header Overlay (Back Button, Title, Page Indicator, Display Controls)
             if (_showControls && !_isLoading && _errorMessage == null)
               Positioned(
                 top: 0,
@@ -258,13 +269,16 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.black.withValues(alpha: 0.85), Colors.transparent],
+                      colors: [
+                        themeConfig.cardColor.withValues(alpha: 0.95),
+                        themeConfig.cardColor.withValues(alpha: 0.0),
+                      ],
                     ),
                   ),
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.textLight, size: 20),
+                        icon: Icon(Icons.arrow_back_ios_new, color: themeConfig.textColor, size: 20),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                       const SizedBox(width: 8),
@@ -274,29 +288,39 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                           children: [
                             Text(
                               widget.partTitle,
-                              style: const TextStyle(color: AppTheme.textLight, fontSize: 15, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: themeConfig.textColor, fontSize: 15, fontWeight: FontWeight.bold),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
                               widget.subjectTitle,
-                              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                              style: TextStyle(color: themeConfig.textMutedColor, fontSize: 12),
                             ),
                           ],
                         ),
                       ),
+                      IconButton(
+                        icon: Icon(
+                          _showReaderControls ? Icons.text_fields_rounded : Icons.tune_rounded,
+                          color: _showReaderControls ? themeConfig.accentColor : themeConfig.textMutedColor,
+                          size: 20,
+                        ),
+                        tooltip: 'Display Controls',
+                        onPressed: () => setState(() => _showReaderControls = !_showReaderControls),
+                      ),
+                      const SizedBox(width: 4),
                       GestureDetector(
                         onTap: _showJumpToPageDialog,
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppTheme.inkCard,
+                            color: themeConfig.cardColor,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppTheme.accentAmber.withValues(alpha: 0.3)),
+                            border: Border.all(color: themeConfig.accentColor.withValues(alpha: 0.4)),
                           ),
                           child: Text(
                             '$_currentPage / $_totalPages',
-                            style: const TextStyle(color: AppTheme.accentAmber, fontWeight: FontWeight.bold, fontSize: 12),
+                            style: TextStyle(color: themeConfig.accentColor, fontWeight: FontWeight.bold, fontSize: 12),
                           ),
                         ),
                       ),
@@ -305,7 +329,23 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                 ),
               ),
 
-            // 6. Bottom Navigation Controls (Scrubber, Prev, Next)
+            // 6. Floating Reader Controls Bar (Theme switcher, font stepper, typeface toggle)
+            if (_showControls && _showReaderControls && !_isLoading && _errorMessage == null)
+              Positioned(
+                bottom: 74,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  top: false,
+                  bottom: false,
+                  child: NotifyReaderControlsBar(
+                    settings: _readerSettings,
+                    onClose: () => setState(() => _showReaderControls = false),
+                  ),
+                ),
+              ),
+
+            // 7. Bottom Navigation Controls (Scrubber, Prev, Next)
             if (_showControls && !_isLoading && _errorMessage == null)
               Positioned(
                 bottom: 0,
@@ -317,21 +357,24 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
-                      colors: [Colors.black.withValues(alpha: 0.9), Colors.transparent],
+                      colors: [
+                        themeConfig.cardColor.withValues(alpha: 0.95),
+                        themeConfig.cardColor.withValues(alpha: 0.0),
+                      ],
                     ),
                   ),
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.chevron_left, size: 30, color: AppTheme.textLight),
+                        icon: Icon(Icons.chevron_left, size: 30, color: themeConfig.textColor),
                         onPressed: _currentPage > 1 ? () => _onPageChanged(_currentPage - 1) : null,
                       ),
                       Expanded(
                         child: SliderTheme(
                           data: SliderTheme.of(context).copyWith(
-                            activeTrackColor: AppTheme.accentAmber,
-                            inactiveTrackColor: Colors.white24,
-                            thumbColor: AppTheme.accentAmber,
+                            activeTrackColor: themeConfig.accentColor,
+                            inactiveTrackColor: themeConfig.borderColor.withValues(alpha: 0.5),
+                            thumbColor: themeConfig.accentColor,
                             trackHeight: 3,
                           ),
                           child: Slider(
@@ -344,7 +387,7 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.chevron_right, size: 30, color: AppTheme.textLight),
+                        icon: Icon(Icons.chevron_right, size: 30, color: themeConfig.textColor),
                         onPressed: _currentPage < _totalPages ? () => _onPageChanged(_currentPage + 1) : null,
                       ),
                     ],

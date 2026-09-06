@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../design_system/design_system.dart';
 import '../../models/catalog_models.dart';
 import '../../services/catalog_service.dart';
-import '../../theme/app_theme.dart';
 
 /// Interactive package selection and duration picker widget.
 ///
@@ -106,10 +106,11 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
         if (result.success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              backgroundColor: AppTheme.accentTeal,
+              backgroundColor: NotifyColors.teal,
+              behavior: SnackBarBehavior.floating,
               content: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
+                  const Icon(Icons.check_circle_rounded, color: Colors.white),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -142,18 +143,16 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.notifyTheme;
+    final isDark = context.isDarkMode;
+
     if (widget.packages.isEmpty) {
-      return Container(
+      return NotifyCard(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppTheme.inkCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white12),
-        ),
-        child: const Center(
+        child: Center(
           child: Text(
             'No purchase packages available for this item.',
-            style: TextStyle(color: AppTheme.textMuted),
+            style: TextStyle(color: theme.textMuted),
           ),
         ),
       );
@@ -163,12 +162,9 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
     final availableDurations = _selectedPackage.availableDurations;
     final selectedPrice = _selectedDuration != null ? _selectedPackage.priceFor(_selectedDuration!) : null;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.inkCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.accentAmber.withValues(alpha: 0.4)),
-      ),
+    return NotifyCard(
+      borderColor: theme.accentAmber.withValues(alpha: 0.4),
+      isElevated: true,
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,28 +176,28 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentAmber.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
+                  color: theme.accentAmber.withValues(alpha: 0.16),
+                  borderRadius: NotifyRadius.sm,
                 ),
-                child: const Icon(Icons.lock_open, color: AppTheme.accentAmber, size: 20),
+                child: Icon(Icons.lock_open_rounded, color: theme.accentAmber, size: 20),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Unlock Full Notes',
                       style: TextStyle(
-                        color: AppTheme.textLight,
+                        color: theme.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       'Choose a package tier and valid study duration',
-                      style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                      style: TextStyle(color: theme.textMuted, fontSize: 12),
                     ),
                   ],
                 ),
@@ -212,16 +208,16 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
           const SizedBox(height: 20),
 
           // 1. Package Tier Picker
-          const Text(
+          Text(
             '1. SELECT PACKAGE TIER',
             style: TextStyle(
-              color: AppTheme.accentAmber,
+              color: theme.accentAmber,
               fontSize: 11,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               letterSpacing: 1.0,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
           Column(
             children: widget.packages.map((pkg) {
@@ -229,15 +225,17 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.accentAmber.withValues(alpha: 0.12) : AppTheme.inkDarker,
-                  borderRadius: BorderRadius.circular(12),
+                  color: isSelected
+                      ? theme.accentAmber.withValues(alpha: 0.12)
+                      : theme.bgDarker.withValues(alpha: 0.6),
+                  borderRadius: NotifyRadius.md,
                   border: Border.all(
-                    color: isSelected ? AppTheme.accentAmber : Colors.white12,
+                    color: isSelected ? theme.accentAmber : theme.border,
                     width: isSelected ? 1.5 : 1.0,
                   ),
                 ),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: NotifyRadius.md,
                   onTap: () => _onPackageSelected(pkg),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -245,7 +243,7 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
                       children: [
                         Icon(
                           isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                          color: isSelected ? AppTheme.accentAmber : AppTheme.textMuted,
+                          color: isSelected ? theme.accentAmber : theme.textMuted,
                           size: 20,
                         ),
                         const SizedBox(width: 12),
@@ -259,29 +257,16 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
                                     child: Text(
                                       pkg.title,
                                       style: TextStyle(
-                                        color: isSelected ? AppTheme.textLight : AppTheme.textMuted,
+                                        color: isSelected ? theme.textPrimary : theme.textMuted,
                                         fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                         fontSize: 14,
                                       ),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? AppTheme.accentAmber.withValues(alpha: 0.25)
-                                          : Colors.white10,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      pkg.packageType.label,
-                                      style: TextStyle(
-                                        color: isSelected ? AppTheme.accentAmber : AppTheme.textMuted,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                                  NotifyTagBadge(
+                                    label: pkg.packageType.label,
+                                    color: isSelected ? theme.accentAmber : theme.textMuted,
                                   ),
                                 ],
                               ),
@@ -290,7 +275,7 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
                                 Text(
                                   pkg.description!,
                                   style: TextStyle(
-                                    color: AppTheme.textMuted.withValues(alpha: 0.8),
+                                    color: theme.textMuted,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -306,7 +291,7 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
             }).toList(),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
 
           // 2. Duration Picker
           // STRICT REQUIREMENT:
@@ -316,33 +301,33 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 '2. SELECT PLAN DURATION',
                 style: TextStyle(
-                  color: AppTheme.accentAmber,
+                  color: theme.accentAmber,
                   fontSize: 11,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: 1.0,
                 ),
               ),
               Text(
                 '${availableDurations.length} duration${availableDurations.length == 1 ? '' : 's'} offered',
-                style: TextStyle(color: AppTheme.textMuted.withValues(alpha: 0.7), fontSize: 11),
+                style: TextStyle(color: theme.textMuted, fontSize: 11),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
           if (availableDurations.isEmpty)
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.inkDarker,
-                borderRadius: BorderRadius.circular(8),
+                color: theme.bgDarker,
+                borderRadius: NotifyRadius.sm,
               ),
               child: const Text(
                 'No plan durations currently configured for this package.',
-                style: TextStyle(color: AppTheme.errorRed, fontSize: 12),
+                style: TextStyle(color: NotifyColors.crimson, fontSize: 12),
               ),
             )
           else
@@ -355,7 +340,7 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
                 final price = _selectedPackage.priceFor(duration)!;
 
                 return InkWell(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: NotifyRadius.md,
                   onTap: () {
                     setState(() {
                       _selectedDuration = duration;
@@ -365,10 +350,10 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppTheme.accentAmber : AppTheme.inkDarker,
-                      borderRadius: BorderRadius.circular(10),
+                      color: isSelected ? theme.accentAmber : theme.bgDarker,
+                      borderRadius: NotifyRadius.md,
                       border: Border.all(
-                        color: isSelected ? AppTheme.accentAmber : Colors.white24,
+                        color: isSelected ? theme.accentAmber : theme.border,
                         width: 1.2,
                       ),
                     ),
@@ -378,16 +363,20 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
                         Text(
                           duration.label,
                           style: TextStyle(
-                            color: isSelected ? AppTheme.inkDarker : AppTheme.textLight,
+                            color: isSelected
+                                ? (isDark ? NotifyColors.inkDarker : Colors.white)
+                                : theme.textPrimary,
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                            fontSize: 12.5,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
                           '₹$price',
                           style: TextStyle(
-                            color: isSelected ? AppTheme.inkDarker : AppTheme.accentAmber,
+                            color: isSelected
+                                ? (isDark ? NotifyColors.inkDarker : Colors.white)
+                                : theme.accentAmber,
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
                           ),
@@ -404,18 +393,18 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppTheme.errorRed.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.4)),
+                color: NotifyColors.crimson.withValues(alpha: 0.12),
+                borderRadius: NotifyRadius.sm,
+                border: Border.all(color: NotifyColors.crimson.withValues(alpha: 0.4)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, color: AppTheme.errorRed, size: 16),
+                  const Icon(Icons.error_outline_rounded, color: NotifyColors.crimson, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(color: AppTheme.errorRed, fontSize: 12),
+                      style: const TextStyle(color: NotifyColors.crimson, fontSize: 12),
                     ),
                   ),
                 ],
@@ -426,35 +415,19 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
           const SizedBox(height: 20),
 
           // 3. Purchase Button
-          ElevatedButton(
+          NotifyButton(
+            isFullWidth: true,
+            isLoading: _isProcessing,
             onPressed: _isProcessing || _selectedDuration == null ? null : _handlePurchase,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accentAmber,
-              foregroundColor: AppTheme.inkDarker,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: _isProcessing
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.inkDarker),
-                    ),
-                  )
-                : Text(
-                    selectedPrice != null
-                        ? 'Unlock Access • ₹$selectedPrice'
-                        : 'Select Plan Duration',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
+            label: selectedPrice != null
+                ? 'Unlock Access • ₹$selectedPrice'
+                : 'Select Plan Duration',
           ),
           const SizedBox(height: 8),
           Center(
             child: Text(
               'Secure direct access • Instant activation (Razorpay stub)',
-              style: TextStyle(color: AppTheme.textMuted.withValues(alpha: 0.6), fontSize: 11),
+              style: TextStyle(color: theme.textSubtle, fontSize: 11),
             ),
           ),
         ],

@@ -8,8 +8,11 @@ import '../../../services/encrypted_cache_service.dart';
 import '../../../services/screen_protection_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/drifting_watermark.dart';
+import '../../../design_system/design_system.dart';
 import 'desktop_chromium_player.dart';
+import 'html_security_scripts.dart';
 import 'mobile_html_player.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 /// Full-featured, secure HTML Note Reader for CA/CMA notes.
 ///
@@ -46,10 +49,13 @@ class HtmlNoteReaderScreen extends StatefulWidget {
 class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
   final EncryptedCacheService _cacheService = EncryptedCacheService();
   final ScreenProtectionService _protectionService = ScreenProtectionService();
+  final ReaderSettingsController _readerSettings = ReaderSettingsController();
 
+  InAppWebViewController? _webViewController;
   String? _decryptedHtml;
   bool _isLoading = true;
   String? _errorMessage;
+  bool _showControls = true;
 
   // Screen capture violation state
   bool _isContentBlanked = false;
@@ -59,7 +65,19 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
   @override
   void initState() {
     super.initState();
+    _readerSettings.addListener(_onReaderSettingsChanged);
     _initReaderAndProtection();
+  }
+
+  void _onReaderSettingsChanged() {
+    if (!mounted) return;
+    setState(() {});
+    final js = HtmlSecurityScripts.buildUpdateStyleJs(
+      themeConfig: _readerSettings.themeConfig,
+      fontSize: _readerSettings.fontSize,
+      isSerif: _readerSettings.isSerif,
+    );
+    _webViewController?.evaluateJavascript(source: js);
   }
 
   Future<void> _initReaderAndProtection() async {
@@ -185,6 +203,7 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
 
   @override
   void dispose() {
+    _readerSettings.removeListener(_onReaderSettingsChanged);
     _violationSubscription?.cancel();
     _protectionService.stopProtection();
     super.dispose();
@@ -195,22 +214,23 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
     final authService = Provider.of<AuthService>(context, listen: false);
     final user = authService.currentUser;
     final userIdentifier = user?.email ?? user?.phoneNumber ?? 'CA-STUDENT';
+    final themeConfig = _readerSettings.themeConfig;
 
     final isDesktop = !kIsWeb &&
         (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
     return Scaffold(
-      backgroundColor: AppTheme.inkDarker,
+      backgroundColor: themeConfig.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.black.withValues(alpha: 0.85),
+        backgroundColor: themeConfig.cardColor.withValues(alpha: 0.95),
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               widget.partTitle,
-              style: const TextStyle(
-                color: AppTheme.textLight,
+              style: TextStyle(
+                color: themeConfig.textColor,
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
               ),
@@ -219,17 +239,28 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
             ),
             Text(
               widget.subjectTitle,
-              style: const TextStyle(
-                color: AppTheme.textMuted,
+              style: TextStyle(
+                color: themeConfig.textMutedColor,
                 fontSize: 11,
               ),
             ),
           ],
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new, size: 18, color: themeConfig.textColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _showControls ? Icons.text_fields_rounded : Icons.tune_rounded,
+              color: _showControls ? themeConfig.accentColor : themeConfig.textMutedColor,
+              size: 20,
+            ),
+            tooltip: 'Reading Controls',
+            onPressed: () => setState(() => _showControls = !_showControls),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Stack(
@@ -237,15 +268,44 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
             // 1. Protected HTML Content View (Mobile InAppWebView or Desktop Chromium)
             if (!_isLoading && _decryptedHtml != null && !_isContentBlanked)
               Positioned.fill(
-                child: isDesktop
-                    ? DesktopChromiumPlayer(
-                        htmlContent: _decryptedHtml!,
-                        onContentLoaded: () {},
-                      )
-                    : MobileHtmlPlayer(
-                        htmlContent: _decryptedHtml!,
-                        onContentLoaded: () {},
-                      ),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: () => setState(() => _showControls = !_showControls),
+                  child: isDesktop
+                      ? DesktopChromiumPlayer(
+                          htmlContent: _decryptedHtml!,
+                          themeConfig: themeConfig,
+                          fontSize: _readerSettings.fontSize,
+                          isSerif: _readerSettings.isSerif,
+                          onControllerCreated: (controller) => _webViewController = controller,
+                          onCanvasTap: () => setState(() => _showControls = !_showControls),
+                          onContentLoaded: () {},
+                        )
+                      : MobileHtmlPlayer(
+                          htmlContent: _decryptedHtml!,
+                          themeConfig: themeConfig,
+                          fontSize: _readerSettings.fontSize,
+                          isSerif: _readerSettings.isSerif,
+                          onControllerCreated: (controller) => _webViewController = controller,
+                          onCanvasTap: () => setState(() => _showControls = !_showControls),
+                          onContentLoaded: () {},
+                        ),
+                ),
+              ),
+
+            // 2. Reader Floating Controls Bar (Theme switcher, font stepper, typeface toggle)
+            if (_showControls && !_isLoading && _errorMessage == null && !_isContentBlanked)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  top: false,
+                  child: NotifyReaderControlsBar(
+                    settings: _readerSettings,
+                    onClose: () => setState(() => _showControls = false),
+                  ),
+                ),
               ),
 
             // 2. Blanked Content State (Triggered on Capture Detection)

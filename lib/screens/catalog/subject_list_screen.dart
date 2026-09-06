@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../design_system/design_system.dart';
 import '../../models/catalog_models.dart';
 import '../../services/catalog_service.dart';
-import '../../theme/app_theme.dart';
 import 'lesson_list_screen.dart';
 
 /// Top-level screen for exploring the course catalog.
@@ -43,55 +43,58 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.notifyTheme;
+    final isDark = context.isDarkMode;
+
     return Scaffold(
-      backgroundColor: AppTheme.ink,
+      backgroundColor: theme.bg,
       appBar: AppBar(
-        title: const Text('Notify Course Catalog'),
+        backgroundColor: theme.bgDarker,
+        title: Text(
+          'Notify Course Catalog',
+          style: TextStyle(
+            color: theme.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            fontFamily: NotifyTypography.serifFamily,
+          ),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.accentAmber))
+          ? Center(child: CircularProgressIndicator(color: theme.accentAmber))
           : RefreshIndicator(
-              color: AppTheme.accentAmber,
+              color: theme.accentAmber,
               onRefresh: _loadSubjects,
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
                   // Hero Card
-                  Container(
+                  NotifyCard(
+                    isElevated: true,
+                    accentStripeColor: theme.accentAmber,
                     padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppTheme.accentAmber.withValues(alpha: 0.18),
-                          AppTheme.inkCard,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.accentAmber.withValues(alpha: 0.3)),
-                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Icon(Icons.auto_stories, color: AppTheme.accentAmber, size: 22),
-                            SizedBox(width: 8),
+                            Icon(Icons.auto_stories_rounded, color: theme.accentAmber, size: 22),
+                            const SizedBox(width: 8),
                             Text(
                               'CA / CMA Exam Notes',
                               style: TextStyle(
-                                color: AppTheme.accentAmber,
-                                fontWeight: FontWeight.bold,
+                                color: theme.accentAmber,
+                                fontWeight: FontWeight.w800,
                                 fontSize: 16,
+                                letterSpacing: 0.3,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Select your subject to browse chapters, preview notes free, or unlock comprehensive study passes.',
-                          style: TextStyle(color: AppTheme.textMuted, fontSize: 13, height: 1.4),
+                          style: TextStyle(color: theme.textMuted, fontSize: 13, height: 1.45),
                         ),
                       ],
                     ),
@@ -101,23 +104,36 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
                   // Filter Chips
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
                     child: Row(
                       children: ['All', 'Inter', 'Final', 'Foundation'].map((lvl) {
                         final isSelected = _selectedLevel == lvl;
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(lvl == 'All' ? 'All Subjects' : 'CA $lvl'),
-                            selected: isSelected,
-                            onSelected: (val) {
-                              if (val) setState(() => _selectedLevel = lvl);
-                            },
-                            selectedColor: AppTheme.accentAmber,
-                            backgroundColor: AppTheme.inkCard,
-                            labelStyle: TextStyle(
-                              color: isSelected ? AppTheme.inkDarker : AppTheme.textMuted,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              fontSize: 12,
+                          child: InkWell(
+                            borderRadius: NotifyRadius.pill,
+                            onTap: () => setState(() => _selectedLevel = lvl),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: isSelected ? theme.accentAmber : theme.cardBg,
+                                borderRadius: NotifyRadius.pill,
+                                border: Border.all(
+                                  color: isSelected ? theme.accentAmber : theme.border,
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: Text(
+                                lvl == 'All' ? 'All Subjects' : 'CA $lvl',
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? (isDark ? NotifyColors.inkDarker : Colors.white)
+                                      : theme.textMuted,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                  fontSize: 12.5,
+                                ),
+                              ),
                             ),
                           ),
                         );
@@ -128,26 +144,28 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
 
                   // Subject Cards List
                   if (_filteredSubjects.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
                       child: Center(
-                        child: Text(
-                          'No subjects found in this category.',
-                          style: TextStyle(color: AppTheme.textMuted),
+                        child: Column(
+                          children: [
+                            Icon(Icons.search_off_rounded, size: 40, color: theme.textSubtle),
+                            const SizedBox(height: 10),
+                            Text(
+                              'No subjects found in this category.',
+                              style: TextStyle(color: theme.textMuted, fontSize: 14),
+                            ),
+                          ],
                         ),
                       ),
                     )
                   else
                     ..._filteredSubjects.map((subject) {
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        decoration: BoxDecoration(
-                          color: AppTheme.inkCard,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white10),
-                        ),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: NotifyCard(
+                          isElevated: true,
+                          accentStripeColor: theme.accentAmber,
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
@@ -155,79 +173,58 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
                               ),
                             );
                           },
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.accentAmber.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        '${subject.category} • ${subject.level}',
-                                        style: const TextStyle(
-                                          color: AppTheme.accentAmber,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    const Icon(Icons.arrow_forward_ios, color: AppTheme.textMuted, size: 14),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  subject.title,
-                                  style: const TextStyle(
-                                    color: AppTheme.textLight,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  NotifyTagBadge(
+                                    label: '${subject.category} • ${subject.level}',
+                                    color: theme.accentAmber,
                                   ),
+                                  const Spacer(),
+                                  Icon(Icons.arrow_forward_ios_rounded, color: theme.textMuted, size: 14),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                subject.title,
+                                style: TextStyle(
+                                  color: theme.textPrimary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  subject.description,
-                                  style: const TextStyle(
-                                    color: AppTheme.textMuted,
-                                    fontSize: 13,
-                                    height: 1.4,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                subject.description,
+                                style: TextStyle(
+                                  color: theme.textMuted,
+                                  fontSize: 13,
+                                  height: 1.45,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Icon(Icons.menu_book_rounded, color: theme.accentTeal, size: 16),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Browse Lessons & Chapters',
+                                    style: TextStyle(
+                                      color: theme.accentTeal,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.menu_book, color: AppTheme.accentTeal, size: 16),
-                                    const SizedBox(width: 6),
-                                    const Text(
-                                      'Browse Lessons & Chapters',
-                                      style: TextStyle(
-                                        color: AppTheme.accentTeal,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white10,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: const Text(
-                                        'Free Previews Inside',
-                                        style: TextStyle(color: AppTheme.textMuted, fontSize: 10),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                                  const Spacer(),
+                                  NotifyTagBadge(
+                                    label: 'Free Previews Inside',
+                                    color: theme.textSubtle,
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       );
