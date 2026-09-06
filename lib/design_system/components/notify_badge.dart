@@ -231,3 +231,68 @@ class NotifyTagBadge extends StatelessWidget {
     );
   }
 }
+
+/// Exam Countdown Badge: Displays "X Days Remaining" until user's target CA exam,
+/// with an interactive tap to customize the exam date.
+class NotifyExamCountdownBadge extends StatelessWidget {
+  final int daysRemaining;
+  final VoidCallback? onTap;
+  final bool isCompact;
+
+  const NotifyExamCountdownBadge({
+    super.key,
+    required this.daysRemaining,
+    this.onTap,
+    this.isCompact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = daysRemaining <= 30
+        ? NotifyColors.coral
+        : (daysRemaining <= 60 ? NotifyColors.amber : NotifyColors.emerald);
+
+    final label = isCompact ? '$daysRemaining Days' : '$daysRemaining Days Remaining';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: NotifyRadius.pill,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isCompact ? 7.0 : 10.0,
+          vertical: isCompact ? 4.0 : 6.0,
+        ),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: NotifyRadius.pill,
+          border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.timer_outlined, size: isCompact ? 12 : 14, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: isCompact ? 11 : 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+            ),
+            if (onTap != null && !isCompact) ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.edit_calendar_rounded,
+                size: 13,
+                color: color.withValues(alpha: 0.7),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+

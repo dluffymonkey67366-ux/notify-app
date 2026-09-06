@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../design_system/design_system.dart';
 import '../../models/study_package.dart';
+import '../../services/progress_service.dart';
 import '../reader/html/html_note_reader_screen.dart';
+import 'widgets/hero_resume_card.dart';
 import 'widgets/package_card.dart';
 
 /// Notify Library / Home Screen
@@ -19,11 +21,64 @@ class _LibraryScreenState extends State<LibraryScreen> {
   late List<StudyPackage> _packages;
   String _searchQuery = '';
   String _selectedFilter = 'All';
+  int _examDaysRemaining = 58;
+  StudyProgress? _recentProgress;
 
   @override
   void initState() {
     super.initState();
     _packages = List.from(StudyPackage.mockPurchasedPackages);
+    _loadProgressAndExamCountdown();
+  }
+
+  Future<void> _loadProgressAndExamCountdown() async {
+    final days = await ProgressService().getExamDaysRemaining();
+    final recent = await ProgressService().getRecentProgress();
+    if (mounted) {
+      setState(() {
+        _examDaysRemaining = days;
+        _recentProgress = recent;
+      });
+    }
+  }
+
+  StudyPackage get _activePackage {
+    if (_recentProgress != null && _recentProgress!.partId.isNotEmpty) {
+      for (final p in _packages) {
+        if (p.id == _recentProgress!.partId) return p;
+      }
+    }
+    return _packages.first;
+  }
+
+  Future<void> _showExamDateDialog() async {
+    final theme = context.notifyTheme;
+    final now = DateTime.now();
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now.add(Duration(days: _examDaysRemaining > 0 ? _examDaysRemaining : 60)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 730)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: theme.accentAmber,
+              onPrimary: Colors.black,
+              surface: theme.cardBg,
+              onSurface: theme.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      await ProgressService().setTargetExamDate(picked);
+      await _loadProgressAndExamCountdown();
+    }
   }
 
   List<StudyPackage> get _filteredPackages {
@@ -140,11 +195,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Header Bar
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
+                    if (isDesktop)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
@@ -183,49 +238,86 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.displayMedium?.copyWith(
                                   color: theme.textPrimary,
-                                  fontSize: isDesktop ? 28 : 24,
+                                  fontSize: 28,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Attempt Badge / User Avatar
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: theme.cardBg,
-                            borderRadius: NotifyRadius.pill,
-                            border: Border.all(color: theme.border, width: 1),
+                          NotifyExamCountdownBadge(
+                            daysRemaining: _examDaysRemaining,
+                            onTap: _showExamDateDialog,
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                        ],
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: NotifyColors.emerald,
-                                  shape: BoxShape.circle,
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    'NOTIFY',
+                                    style: TextStyle(
+                                      color: theme.accentAmber,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 2.0,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: theme.accentAmber.withValues(alpha: 0.16),
+                                      borderRadius: NotifyRadius.xs,
+                                    ),
+                                    child: Text(
+                                      'STUDY PRO',
+                                      style: TextStyle(
+                                        color: theme.accentAmber,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'May 2026',
-                                style: TextStyle(
-                                  color: theme.textPrimary,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              NotifyExamCountdownBadge(
+                                daysRemaining: _examDaysRemaining,
+                                onTap: _showExamDateDialog,
+                                isCompact: true,
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'My CA Library',
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                              color: theme.textPrimary,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
 
                     const SizedBox(height: 20),
+
+                    // Elevated HeroResumeCard placed below top app bar, above streak banner/search filters
+                    if (_packages.isNotEmpty && _selectedFilter == 'All' && _searchQuery.isEmpty) ...[
+                      HeroResumeCard(
+                        package: _activePackage,
+                        progress: _recentProgress,
+                        onResume: () => _openReaderForPackage(_activePackage),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
 
                     // Daily Study Streak & Goal Banner
                     _buildStreakBanner(theme, isDesktop),
