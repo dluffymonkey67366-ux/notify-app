@@ -189,7 +189,7 @@ class NotifyTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: NotifyColors.inkDarker,
-        indicatorColor: NotifyColors.amber.withOpacity(0.18),
+        indicatorColor: NotifyColors.amber.withValues(alpha: 0.18),
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -226,7 +226,7 @@ class NotifyTheme {
           fontWeight: FontWeight.w500,
           fontSize: 13,
         ),
-        indicatorColor: NotifyColors.amber.withOpacity(0.18),
+        indicatorColor: NotifyColors.amber.withValues(alpha: 0.18),
       ),
       dividerTheme: const DividerThemeData(
         color: NotifyColors.inkBorder,
@@ -307,7 +307,7 @@ class NotifyTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: NotifyColors.paperDarker,
-        indicatorColor: NotifyColors.amberDark.withOpacity(0.12),
+        indicatorColor: NotifyColors.amberDark.withValues(alpha: 0.12),
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -344,7 +344,7 @@ class NotifyTheme {
           fontWeight: FontWeight.w500,
           fontSize: 13,
         ),
-        indicatorColor: NotifyColors.amberDark.withOpacity(0.12),
+        indicatorColor: NotifyColors.amberDark.withValues(alpha: 0.12),
       ),
       dividerTheme: const DividerThemeData(
         color: NotifyColors.paperBorder,

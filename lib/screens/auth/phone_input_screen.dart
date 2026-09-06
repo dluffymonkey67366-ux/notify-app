@@ -86,7 +86,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentAmber.withOpacity(0.12),
+                  color: AppTheme.accentAmber.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -125,7 +125,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.inkCard,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.textMuted.withOpacity(0.2)),
+                      border: Border.all(color: AppTheme.textMuted.withValues(alpha: 0.2)),
                     ),
                     alignment: Alignment.center,
                     child: Row(
@@ -159,7 +159,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                         counterText: "",
                         hintText: "98765 43210",
                         hintStyle: TextStyle(
-                          color: AppTheme.textMuted.withOpacity(0.4),
+                          color: AppTheme.textMuted.withValues(alpha: 0.4),
                           letterSpacing: 1.5,
                         ),
                       ),
@@ -174,9 +174,9 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: AppTheme.errorRed.withOpacity(0.12),
+                    color: AppTheme.errorRed.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.errorRed.withOpacity(0.3)),
+                    border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [

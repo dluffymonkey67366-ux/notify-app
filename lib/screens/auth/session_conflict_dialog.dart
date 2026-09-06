@@ -28,7 +28,7 @@ class SessionConflictDialog extends StatelessWidget {
         backgroundColor: AppTheme.inkCard,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: AppTheme.errorRed.withOpacity(0.4), width: 1.5),
+          side: BorderSide(color: AppTheme.errorRed.withValues(alpha: 0.4), width: 1.5),
         ),
         title: Row(
           children: [

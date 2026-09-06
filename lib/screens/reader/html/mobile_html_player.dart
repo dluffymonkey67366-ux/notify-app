@@ -1,5 +1,4 @@
 import 'dart:collection';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'html_security_scripts.dart';
@@ -23,6 +22,20 @@ class MobileHtmlPlayer extends StatefulWidget {
 
 class _MobileHtmlPlayerState extends State<MobileHtmlPlayer> {
   InAppWebViewController? _webViewController;
+
+  @override
+  void didUpdateWidget(MobileHtmlPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.htmlContent != widget.htmlContent) {
+      final secureHtml = HtmlSecurityScripts.wrapSecureHtml(widget.htmlContent);
+      _webViewController?.loadData(
+        data: secureHtml,
+        mimeType: 'text/html',
+        encoding: 'utf-8',
+        baseUrl: WebUri('about:blank'),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -28,7 +28,6 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
 
   bool _isLoading = true;
   bool _hasAccess = false;
-  String _previewContent = '';
   List<Package> _packages = [];
 
   @override
@@ -46,8 +45,6 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
       subjectId: widget.subject.id,
     );
 
-    final preview = await _catalogService.getTrimmedPreviewHtml(widget.part);
-
     final packages = await _catalogService.getPackagesForPart(
       partId: widget.part.id,
       lessonId: widget.lesson.id,
@@ -57,7 +54,6 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
     if (mounted) {
       setState(() {
         _hasAccess = access;
-        _previewContent = preview;
         _packages = packages;
         _isLoading = false;
       });
@@ -145,8 +141,8 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: widget.part.isPdf
-                                    ? AppTheme.accentCoral.withOpacity(0.2)
-                                    : AppTheme.accentTeal.withOpacity(0.2),
+                                    ? AppTheme.accentCoral.withValues(alpha: 0.2)
+                                    : AppTheme.accentTeal.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -163,8 +159,8 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: _hasAccess
-                                    ? AppTheme.accentTeal.withOpacity(0.2)
-                                    : AppTheme.accentAmber.withOpacity(0.2),
+                                    ? AppTheme.accentTeal.withValues(alpha: 0.2)
+                                    : AppTheme.accentAmber.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Row(
@@ -220,7 +216,7 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppTheme.accentAmber.withOpacity(0.2),
+                          color: AppTheme.accentAmber.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
@@ -242,7 +238,7 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.inkDarker,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppTheme.accentAmber.withOpacity(0.3)),
+                      border: Border.all(color: AppTheme.accentAmber.withValues(alpha: 0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +247,7 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: AppTheme.accentAmber.withOpacity(0.1),
+                            color: AppTheme.accentAmber.withValues(alpha: 0.1),
                             borderRadius: const BorderRadius.only(
                               topLeft: Radius.circular(14),
                               topRight: Radius.circular(14),
@@ -317,7 +313,7 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               colors: [
-                                AppTheme.inkDarker.withOpacity(0.0),
+                                AppTheme.inkDarker.withValues(alpha: 0.0),
                                 AppTheme.inkDarker,
                               ],
                             ),
@@ -345,7 +341,7 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.accentTeal.withOpacity(0.12),
+                        color: AppTheme.accentTeal.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: AppTheme.accentTeal),
                       ),

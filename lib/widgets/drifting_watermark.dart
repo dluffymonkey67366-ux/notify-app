@@ -82,7 +82,7 @@ class _DriftingWatermarkState extends State<DriftingWatermark> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(

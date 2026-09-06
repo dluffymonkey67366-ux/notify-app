@@ -150,7 +150,7 @@ class PackageCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: theme.bgDarker.withOpacity(0.6),
+              color: theme.bgDarker.withValues(alpha: 0.6),
               borderRadius: NotifyRadius.sm,
               border: Border.all(color: theme.borderSubtle, width: 1),
             ),

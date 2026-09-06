@@ -67,7 +67,7 @@ class NotifyButton extends StatelessWidget {
       case NotifyButtonVariant.secondary:
         bgColor = Colors.transparent;
         fgColor = theme.accentAmber;
-        borderSide = BorderSide(color: theme.accentAmber.withOpacity(0.6), width: 1.2);
+        borderSide = BorderSide(color: theme.accentAmber.withValues(alpha: 0.6), width: 1.2);
         break;
       case NotifyButtonVariant.ghost:
         bgColor = Colors.transparent;

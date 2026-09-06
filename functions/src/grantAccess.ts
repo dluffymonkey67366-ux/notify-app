@@ -35,7 +35,7 @@ export function calculateExpiresAt(startDate: Date, duration: PlanDuration): Dat
  * Resolves all individual part IDs covered by a package.
  * Supports parts, lessons, subjects, or bundles.
  */
-export async function resolveCoveredPartIds(pkg: Package): Promise<string[]> {
+export async function resolveCoveredPartIds(pkg: Package, dbInstance: any = db): Promise<string[]> {
   const partIds = new Set<string>();
 
   for (const ref of pkg.refs) {
@@ -43,24 +43,24 @@ export async function resolveCoveredPartIds(pkg: Package): Promise<string[]> {
       partIds.add(ref);
     } else if (pkg.packageType === "lesson") {
       // Query parts inside this lesson across subjects
-      const partsSnap = await db
+      const partsSnap = await dbInstance
         .collectionGroup("parts")
         .where("lessonId", "==", ref)
         .get();
       if (!partsSnap.empty) {
-        partsSnap.forEach((doc) => partIds.add(doc.id));
+        partsSnap.forEach((doc: any) => partIds.add(doc.id));
       } else {
         // Fallback: if ref itself is direct part id
         partIds.add(ref);
       }
     } else if (pkg.packageType === "subject") {
       // Query all parts in this subject
-      const partsSnap = await db
+      const partsSnap = await dbInstance
         .collectionGroup("parts")
         .where("subjectId", "==", ref)
         .get();
       if (!partsSnap.empty) {
-        partsSnap.forEach((doc) => partIds.add(doc.id));
+        partsSnap.forEach((doc: any) => partIds.add(doc.id));
       } else {
         partIds.add(ref);
       }
@@ -83,6 +83,119 @@ export interface GrantPurchaseAccessInput {
 }
 
 /**
+ * Core purchase granting logic.
+ * Validates package, calculates server expiry, resolves parts, and commits batch.
+ */
+export async function processPurchaseGrant(
+  data: GrantPurchaseAccessInput,
+  userId: string,
+  dbInstance: any = db
+) {
+  const { packageId, planDuration } = data;
+  if (!packageId || !planDuration) {
+    throw new Error("packageId and planDuration are required.");
+  }
+
+  // 1. Fetch package definition
+  const packageDoc = await dbInstance.collection("packages").doc(packageId).get();
+  if (!packageDoc.exists) {
+    throw new Error(`Package ${packageId} not found.`);
+  }
+
+  const pkg = { id: packageDoc.id, ...packageDoc.data() } as Package;
+  if (!pkg.isActive) {
+    throw new Error(`Package ${packageId} is not currently active.`);
+  }
+
+  // 2. Validate that the package actually offers this duration
+  const price = pkg.pricing[planDuration];
+  if (price === undefined || price === null) {
+    throw new Error(`Plan duration ${planDuration} is not offered for package ${packageId}.`);
+  }
+
+  // 3. Compute server-side timestamps
+  const now = new Date();
+  const purchasedAt = now;
+  const expiresDate = calculateExpiresAt(now, planDuration);
+  const expiresAt = expiresDate;
+
+  // 4. Resolve all covered part IDs
+  const coveredPartIds = await resolveCoveredPartIds(pkg, dbInstance);
+
+  // 5. Batch write purchase record and part-level access records
+  const batch = dbInstance.batch();
+  const purchaseId = `purch_${userId}_${packageId}_${now.getTime()}`;
+  const purchaseRef = dbInstance.collection("purchases").doc(purchaseId);
+
+  const masterPurchaseData = {
+    id: purchaseId,
+    userId,
+    packageId,
+    packageType: pkg.packageType,
+    planDuration,
+    purchasedAt,
+    expiresAt,
+    status: "active",
+    amount: price,
+    currency: "INR",
+    razorpayPaymentId: data.razorpayPaymentId || null,
+    razorpayOrderId: data.razorpayOrderId || null,
+    coveredPartIds,
+    createdAt: purchasedAt,
+    updatedAt: purchasedAt,
+  };
+  batch.set(purchaseRef, masterPurchaseData);
+
+  // Write deterministic part-level purchase documents for O(1) Firestore security rules
+  for (const partId of coveredPartIds) {
+    const partAccessRef = dbInstance.collection("purchases").doc(`${userId}_${partId}`);
+    batch.set(
+      partAccessRef,
+      {
+        userId,
+        packageId,
+        partId,
+        packageType: pkg.packageType,
+        planDuration,
+        purchasedAt,
+        expiresAt,
+        status: "active",
+        masterPurchaseId: purchaseId,
+        updatedAt: purchasedAt,
+      },
+      { merge: true }
+    );
+  }
+
+  // Also write package level access record
+  const pkgAccessRef = dbInstance.collection("purchases").doc(`${userId}_${packageId}`);
+  batch.set(
+    pkgAccessRef,
+    {
+      userId,
+      packageId,
+      packageType: pkg.packageType,
+      planDuration,
+      purchasedAt,
+      expiresAt,
+      status: "active",
+      masterPurchaseId: purchaseId,
+      updatedAt: purchasedAt,
+    },
+    { merge: true }
+  );
+
+  await batch.commit();
+
+  return {
+    success: true,
+    purchaseId,
+    expiresAt: expiresAt.toISOString(),
+    coveredPartIds,
+  };
+}
+
+/**
  * Cloud Function: grantPurchaseAccess
  * Triggered on successful payment or called by authenticated client after payment verification.
  * Writes immutable purchases record with correct server-calculated expiresAt.
@@ -97,119 +210,16 @@ export const grantPurchaseAccess = functions.https.onCall(
       );
     }
 
-    const { packageId, planDuration } = data;
-    if (!packageId || !planDuration) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "packageId and planDuration are required."
-      );
+    try {
+      return await processPurchaseGrant(data, userId, db);
+    } catch (err: any) {
+      if (err.message?.includes("not found")) {
+        throw new functions.https.HttpsError("not-found", err.message);
+      } else if (err.message?.includes("not currently active")) {
+        throw new functions.https.HttpsError("failed-precondition", err.message);
+      } else {
+        throw new functions.https.HttpsError("invalid-argument", err.message);
+      }
     }
-
-    // 1. Fetch package definition
-    const packageDoc = await db.collection("packages").doc(packageId).get();
-    if (!packageDoc.exists) {
-      throw new functions.https.HttpsError(
-        "not-found",
-        `Package ${packageId} not found.`
-      );
-    }
-
-    const pkg = { id: packageDoc.id, ...packageDoc.data() } as Package;
-    if (!pkg.isActive) {
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        `Package ${packageId} is not currently active.`
-      );
-    }
-
-    // 2. Validate that the package actually offers this duration
-    const price = pkg.pricing[planDuration];
-    if (price === undefined || price === null) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        `Plan duration ${planDuration} is not offered for package ${packageId}.`
-      );
-    }
-
-    // 3. Compute server-side timestamps
-    const now = new Date();
-    const purchasedAt = admin.firestore.Timestamp.fromDate(now);
-    const expiresDate = calculateExpiresAt(now, planDuration);
-    const expiresAt = admin.firestore.Timestamp.fromDate(expiresDate);
-
-    // 4. Resolve all covered part IDs
-    const coveredPartIds = await resolveCoveredPartIds(pkg);
-
-    // 5. Batch write purchase record and part-level access records
-    const batch = db.batch();
-    const purchaseId = `purch_${userId}_${packageId}_${now.getTime()}`;
-    const purchaseRef = db.collection("purchases").doc(purchaseId);
-
-    const masterPurchaseData = {
-      id: purchaseId,
-      userId,
-      packageId,
-      packageType: pkg.packageType,
-      planDuration,
-      purchasedAt,
-      expiresAt,
-      status: "active",
-      amount: price,
-      currency: "INR",
-      razorpayPaymentId: data.razorpayPaymentId || null,
-      razorpayOrderId: data.razorpayOrderId || null,
-      coveredPartIds,
-      createdAt: purchasedAt,
-      updatedAt: purchasedAt,
-    };
-    batch.set(purchaseRef, masterPurchaseData);
-
-    // Write deterministic part-level purchase documents for O(1) Firestore security rules
-    for (const partId of coveredPartIds) {
-      const partAccessRef = db.collection("purchases").doc(`${userId}_${partId}`);
-      batch.set(
-        partAccessRef,
-        {
-          userId,
-          packageId,
-          partId,
-          packageType: pkg.packageType,
-          planDuration,
-          purchasedAt,
-          expiresAt,
-          status: "active",
-          masterPurchaseId: purchaseId,
-          updatedAt: purchasedAt,
-        },
-        { merge: true }
-      );
-    }
-
-    // Also write package level access record
-    const pkgAccessRef = db.collection("purchases").doc(`${userId}_${packageId}`);
-    batch.set(
-      pkgAccessRef,
-      {
-        userId,
-        packageId,
-        packageType: pkg.packageType,
-        planDuration,
-        purchasedAt,
-        expiresAt,
-        status: "active",
-        masterPurchaseId: purchaseId,
-        updatedAt: purchasedAt,
-      },
-      { merge: true }
-    );
-
-    await batch.commit();
-
-    return {
-      success: true,
-      purchaseId,
-      expiresAt: expiresAt.toDate().toISOString(),
-      coveredPartIds,
-    };
   }
 );

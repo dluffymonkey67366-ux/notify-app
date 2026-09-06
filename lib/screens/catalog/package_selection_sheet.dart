@@ -167,7 +167,7 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
       decoration: BoxDecoration(
         color: AppTheme.inkCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.accentAmber.withOpacity(0.4)),
+        border: Border.all(color: AppTheme.accentAmber.withValues(alpha: 0.4)),
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -180,7 +180,7 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentAmber.withOpacity(0.15),
+                  color: AppTheme.accentAmber.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.lock_open, color: AppTheme.accentAmber, size: 20),
@@ -191,15 +191,16 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Choose Access Package',
+                      'Unlock Full Notes',
                       style: TextStyle(
                         color: AppTheme.textLight,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    SizedBox(height: 2),
                     Text(
-                      'Select package tier and duration to unlock notes',
+                      'Choose a package tier and valid study duration',
                       style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
                     ),
                   ],
@@ -207,11 +208,12 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
 
-          // 1. Package Type Selector Tabs / Cards
+          const SizedBox(height: 20),
+
+          // 1. Package Tier Picker
           const Text(
-            '1. SELECT COVERAGE TIER',
+            '1. SELECT PACKAGE TIER',
             style: TextStyle(
               color: AppTheme.accentAmber,
               fontSize: 11,
@@ -227,7 +229,7 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.accentAmber.withOpacity(0.12) : AppTheme.inkDarker,
+                  color: isSelected ? AppTheme.accentAmber.withValues(alpha: 0.12) : AppTheme.inkDarker,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected ? AppTheme.accentAmber : Colors.white12,
@@ -268,7 +270,7 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? AppTheme.accentAmber.withOpacity(0.25)
+                                          ? AppTheme.accentAmber.withValues(alpha: 0.25)
                                           : Colors.white10,
                                       borderRadius: BorderRadius.circular(6),
                                     ),
@@ -288,7 +290,7 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
                                 Text(
                                   pkg.description!,
                                   style: TextStyle(
-                                    color: AppTheme.textMuted.withOpacity(0.8),
+                                    color: AppTheme.textMuted.withValues(alpha: 0.8),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -325,7 +327,7 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
               ),
               Text(
                 '${availableDurations.length} duration${availableDurations.length == 1 ? '' : 's'} offered',
-                style: TextStyle(color: AppTheme.textMuted.withOpacity(0.7), fontSize: 11),
+                style: TextStyle(color: AppTheme.textMuted.withValues(alpha: 0.7), fontSize: 11),
               ),
             ],
           ),
@@ -402,9 +404,9 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppTheme.errorRed.withOpacity(0.15),
+                color: AppTheme.errorRed.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.errorRed.withOpacity(0.4)),
+                border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.4)),
               ),
               child: Row(
                 children: [
@@ -452,7 +454,7 @@ class _PackageSelectionSheetState extends State<PackageSelectionSheet> {
           Center(
             child: Text(
               'Secure direct access • Instant activation (Razorpay stub)',
-              style: TextStyle(color: AppTheme.textMuted.withOpacity(0.6), fontSize: 11),
+              style: TextStyle(color: AppTheme.textMuted.withValues(alpha: 0.6), fontSize: 11),
             ),
           ),
         ],

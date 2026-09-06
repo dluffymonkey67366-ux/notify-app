@@ -23,22 +23,22 @@ class NotifyExpiryBadge extends StatelessWidget {
 
     if (daysRemaining <= 0) {
       badgeColor = NotifyColors.crimson;
-      badgeBg = NotifyColors.crimson.withOpacity(0.15);
+      badgeBg = NotifyColors.crimson.withValues(alpha: 0.15);
       badgeIcon = Icons.error_outline_rounded;
       label = 'Access Expired';
     } else if (daysRemaining <= 7) {
       badgeColor = NotifyColors.coral;
-      badgeBg = NotifyColors.coral.withOpacity(0.18);
+      badgeBg = NotifyColors.coral.withValues(alpha: 0.18);
       badgeIcon = Icons.timer_outlined;
       label = '$daysRemaining days remaining';
     } else if (daysRemaining <= 30) {
       badgeColor = NotifyColors.warningAmber;
-      badgeBg = NotifyColors.warningAmber.withOpacity(0.16);
+      badgeBg = NotifyColors.warningAmber.withValues(alpha: 0.16);
       badgeIcon = Icons.hourglass_top_rounded;
       label = '$daysRemaining days remaining';
     } else {
       badgeColor = NotifyColors.emerald;
-      badgeBg = NotifyColors.emerald.withOpacity(0.14);
+      badgeBg = NotifyColors.emerald.withValues(alpha: 0.14);
       badgeIcon = Icons.event_available_rounded;
       label = '$daysRemaining days remaining';
     }
@@ -51,7 +51,7 @@ class NotifyExpiryBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: badgeBg,
         borderRadius: NotifyRadius.pill,
-        border: Border.all(color: badgeColor.withOpacity(0.35), width: 1),
+        border: Border.all(color: badgeColor.withValues(alpha: 0.35), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -112,9 +112,9 @@ class NotifyOfflineIndicator extends StatelessWidget {
           vertical: isCompact ? 3.5 : 5.0,
         ),
         decoration: BoxDecoration(
-          color: NotifyColors.teal.withOpacity(0.14),
+          color: NotifyColors.teal.withValues(alpha: 0.14),
           borderRadius: NotifyRadius.pill,
-          border: Border.all(color: NotifyColors.teal.withOpacity(0.35), width: 1),
+          border: Border.all(color: NotifyColors.teal.withValues(alpha: 0.35), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -202,9 +202,9 @@ class NotifyTagBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.5),
       decoration: BoxDecoration(
-        color: effectiveColor.withOpacity(0.12),
+        color: effectiveColor.withValues(alpha: 0.12),
         borderRadius: NotifyRadius.sm,
-        border: Border.all(color: effectiveColor.withOpacity(0.25), width: 1),
+        border: Border.all(color: effectiveColor.withValues(alpha: 0.25), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

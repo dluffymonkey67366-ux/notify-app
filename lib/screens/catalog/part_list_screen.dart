@@ -141,7 +141,7 @@ class _PartListScreenState extends State<PartListScreen> {
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: hasAccess
-                                ? AppTheme.accentTeal.withOpacity(0.4)
+                                ? AppTheme.accentTeal.withValues(alpha: 0.4)
                                 : Colors.white12,
                           ),
                         ),
@@ -151,8 +151,8 @@ class _PartListScreenState extends State<PartListScreen> {
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
                               color: part.isPdf
-                                  ? AppTheme.accentCoral.withOpacity(0.15)
-                                  : AppTheme.accentAmber.withOpacity(0.15),
+                                  ? AppTheme.accentCoral.withValues(alpha: 0.15)
+                                  : AppTheme.accentAmber.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
@@ -189,8 +189,8 @@ class _PartListScreenState extends State<PartListScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: hasAccess
-                                        ? AppTheme.accentTeal.withOpacity(0.2)
-                                        : AppTheme.accentAmber.withOpacity(0.2),
+                                        ? AppTheme.accentTeal.withValues(alpha: 0.2)
+                                        : AppTheme.accentAmber.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(

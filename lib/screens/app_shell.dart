@@ -71,7 +71,7 @@ class _AppShellState extends State<AppShell> {
                             borderRadius: NotifyRadius.md,
                             boxShadow: [
                               BoxShadow(
-                                color: NotifyColors.amber.withOpacity(0.35),
+                                color: NotifyColors.amber.withValues(alpha: 0.35),
                                 blurRadius: 10,
                                 offset: const Offset(0, 2),
                               ),
@@ -205,8 +205,8 @@ class _AppShellState extends State<AppShell> {
                               scale: 0.75,
                               child: Switch(
                                 value: themeController.isDarkMode,
-                                activeColor: NotifyColors.amber,
-                                activeTrackColor: NotifyColors.amber.withOpacity(0.3),
+                                activeThumbColor: NotifyColors.amber,
+                                activeTrackColor: NotifyColors.amber.withValues(alpha: 0.3),
                                 inactiveThumbColor: theme.textMuted,
                                 onChanged: (_) => themeController.toggleTheme(),
                               ),
@@ -306,7 +306,7 @@ class _AppShellState extends State<AppShell> {
     final isSelected = _selectedIndex == index;
 
     return Material(
-      color: isSelected ? theme.accentAmber.withOpacity(0.15) : Colors.transparent,
+      color: isSelected ? theme.accentAmber.withValues(alpha: 0.15) : Colors.transparent,
       borderRadius: NotifyRadius.md,
       child: InkWell(
         onTap: () => _onDestinationSelected(index),
@@ -316,7 +316,7 @@ class _AppShellState extends State<AppShell> {
           decoration: BoxDecoration(
             borderRadius: NotifyRadius.md,
             border: isSelected
-                ? Border.all(color: theme.accentAmber.withOpacity(0.4), width: 1)
+                ? Border.all(color: theme.accentAmber.withValues(alpha: 0.4), width: 1)
                 : null,
           ),
           child: Row(
@@ -536,7 +536,7 @@ class _StudentProfileScreen extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: theme.accentAmber.withOpacity(0.2),
+                  backgroundColor: theme.accentAmber.withValues(alpha: 0.2),
                   child: const Icon(
                     Icons.person_rounded,
                     color: NotifyColors.amber,
@@ -604,7 +604,7 @@ class _StudentProfileScreen extends StatelessWidget {
                 style: TextStyle(color: theme.textMuted, fontSize: 12),
               ),
               value: themeController.isDarkMode,
-              activeColor: NotifyColors.amber,
+              activeThumbColor: NotifyColors.amber,
               onChanged: (_) => themeController.toggleTheme(),
             ),
           ),

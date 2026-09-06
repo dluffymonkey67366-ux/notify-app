@@ -10,40 +10,115 @@ const db = admin.firestore();
  * Revokes a list of purchase documents by setting status to 'expired'
  * and removing their corresponding part access keys.
  */
-async function revokePurchases(purchasesToRevoke: FirebaseFirestore.DocumentSnapshot[]): Promise<string[]> {
+export async function revokePurchases(
+  purchasesToRevoke: FirebaseFirestore.DocumentSnapshot[],
+  dbInstance: any = db
+): Promise<string[]> {
   if (purchasesToRevoke.length === 0) return [];
 
-  const batch = db.batch();
+  const batch = dbInstance.batch();
   const revokedIds: string[] = [];
+  const deletedDocIds = new Set<string>();
+  const now = new Date();
 
+  // First pass: identify all part access and package access docs to delete
+  for (const doc of purchasesToRevoke) {
+    const data = doc.data();
+    if (!data) continue;
+
+    // If master purchase record with coveredPartIds, delete part access docs
+    if (Array.isArray(data.coveredPartIds)) {
+      for (const partId of data.coveredPartIds) {
+        deletedDocIds.add(`${data.userId}_${partId}`);
+      }
+    }
+    // Any derived access key with masterPurchaseId should be deleted
+    if (data.masterPurchaseId) {
+      deletedDocIds.add(doc.id);
+    }
+  }
+
+  // Second pass: apply deletes and updates without conflict
   for (const doc of purchasesToRevoke) {
     const data = doc.data();
     if (!data) continue;
 
     revokedIds.push(doc.id);
-    batch.update(doc.ref, {
-      status: "expired",
-      revokedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
 
-    // If master purchase record with coveredPartIds, also invalidate part access docs
-    if (Array.isArray(data.coveredPartIds)) {
-      for (const partId of data.coveredPartIds) {
-        const partRef = db.collection("purchases").doc(`${data.userId}_${partId}`);
-        batch.delete(partRef);
-      }
+    if (deletedDocIds.has(doc.id)) {
+      batch.delete(doc.ref);
+    } else {
+      batch.update(doc.ref, {
+        status: "expired",
+        revokedAt: now,
+        updatedAt: now,
+      });
     }
+  }
 
-    // Also delete direct package reference if present
-    if (data.packageId && data.userId) {
-      const pkgRef = db.collection("purchases").doc(`${data.userId}_${data.packageId}`);
-      batch.delete(pkgRef);
+  // Ensure any derived part access docs not directly in purchasesToRevoke are also deleted
+  for (const delId of deletedDocIds) {
+    if (!purchasesToRevoke.some((d) => d.id === delId)) {
+      const delRef = dbInstance.collection("purchases").doc(delId);
+      batch.delete(delRef);
     }
   }
 
   await batch.commit();
   return revokedIds;
+}
+
+/**
+ * Core check-and-revoke logic.
+ */
+export async function processCheckAndRevoke(
+  userId: string,
+  dbInstance: any = db
+) {
+  const nowMillis = Date.now();
+
+  // Query all active purchases for this user
+  const purchasesSnap = await dbInstance
+    .collection("purchases")
+    .where("userId", "==", userId)
+    .where("status", "==", "active")
+    .get();
+
+  const activePackages: string[] = [];
+  const expiredPackages: string[] = [];
+  const docsToRevoke: FirebaseFirestore.DocumentSnapshot[] = [];
+
+  purchasesSnap.forEach((doc: any) => {
+    const p = doc.data();
+    const expiresMillis = p.expiresAt?.toMillis
+      ? p.expiresAt.toMillis()
+      : p.expiresAt?.toDate
+      ? p.expiresAt.toDate().getTime()
+      : p.expiresAt instanceof Date
+      ? p.expiresAt.getTime()
+      : new Date(p.expiresAt).getTime();
+
+    if (expiresMillis && expiresMillis <= nowMillis) {
+      docsToRevoke.push(doc);
+      if (p.packageId && !expiredPackages.includes(p.packageId)) {
+        expiredPackages.push(p.packageId);
+      }
+    } else if (p.packageId && !activePackages.includes(p.packageId)) {
+      activePackages.push(p.packageId);
+    }
+  });
+
+  if (docsToRevoke.length > 0) {
+    await revokePurchases(docsToRevoke, dbInstance);
+  }
+
+  return {
+    userId,
+    activePackages,
+    expiredPackages,
+    revokedCount: docsToRevoke.length,
+    verifiedAt: new Date(nowMillis).toISOString(),
+  };
 }
 
 /**
@@ -62,42 +137,7 @@ export const checkAndRevokeAccess = functions.https.onCall(
       );
     }
 
-    const now = admin.firestore.Timestamp.now();
-
-    // Query all active purchases for this user
-    const purchasesSnap = await db
-      .collection("purchases")
-      .where("userId", "==", userId)
-      .where("status", "==", "active")
-      .get();
-
-    const activePackages: string[] = [];
-    const expiredPackages: string[] = [];
-    const docsToRevoke: FirebaseFirestore.DocumentSnapshot[] = [];
-
-    purchasesSnap.forEach((doc) => {
-      const p = doc.data();
-      if (p.expiresAt && p.expiresAt.toMillis() <= now.toMillis()) {
-        docsToRevoke.push(doc);
-        if (p.packageId && !expiredPackages.includes(p.packageId)) {
-          expiredPackages.push(p.packageId);
-        }
-      } else if (p.packageId && !activePackages.includes(p.packageId)) {
-        activePackages.push(p.packageId);
-      }
-    });
-
-    if (docsToRevoke.length > 0) {
-      await revokePurchases(docsToRevoke);
-    }
-
-    return {
-      userId,
-      activePackages,
-      expiredPackages,
-      revokedCount: docsToRevoke.length,
-      verifiedAt: now.toDate().toISOString(),
-    };
+    return processCheckAndRevoke(userId, db);
   }
 );
 

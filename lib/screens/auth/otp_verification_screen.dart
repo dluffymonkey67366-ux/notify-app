@@ -141,7 +141,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentAmber.withOpacity(0.12),
+                  color: AppTheme.accentAmber.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -197,7 +197,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   counterText: "",
                   hintText: "••••••",
                   hintStyle: TextStyle(
-                    color: AppTheme.textMuted.withOpacity(0.4),
+                    color: AppTheme.textMuted.withValues(alpha: 0.4),
                     letterSpacing: 12,
                   ),
                 ),
@@ -213,9 +213,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: AppTheme.errorRed.withOpacity(0.12),
+                    color: AppTheme.errorRed.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.errorRed.withOpacity(0.3)),
+                    border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [

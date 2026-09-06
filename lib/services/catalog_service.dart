@@ -236,6 +236,9 @@ class CatalogService {
         return snap.docs.map((doc) => Subject.fromMap(doc.data(), doc.id)).toList();
       }
     } catch (e) {
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        rethrow;
+      }
       debugPrint("Using local subjects catalog fallback: $e");
     }
     return List.unmodifiable(_mockSubjects);
@@ -254,6 +257,9 @@ class CatalogService {
         return snap.docs.map((doc) => Lesson.fromMap(doc.data(), doc.id)).toList();
       }
     } catch (e) {
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        rethrow;
+      }
       debugPrint("Using local lessons catalog fallback: $e");
     }
     return List.unmodifiable(_mockLessons[subjectId] ?? []);
@@ -306,6 +312,9 @@ class CatalogService {
         return doc.data()?['fullRef'] as String?;
       }
     } catch (e) {
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        rethrow;
+      }
       debugPrint("Error fetching protected fullRef: $e");
     }
     // Fallback to local mock if available (for offline testing)
@@ -329,6 +338,9 @@ class CatalogService {
         allPackages = snap.docs.map((doc) => Package.fromMap(doc.data(), doc.id)).toList();
       }
     } catch (e) {
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        rethrow;
+      }
       debugPrint("Using local packages fallback: $e");
     }
 
@@ -351,6 +363,9 @@ class CatalogService {
         allPackages = snap.docs.map((doc) => Package.fromMap(doc.data(), doc.id)).toList();
       }
     } catch (e) {
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        rethrow;
+      }
       debugPrint("Using local packages fallback: $e");
     }
 
@@ -419,6 +434,9 @@ class CatalogService {
         }
       }
     } catch (e) {
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        rethrow;
+      }
       debugPrint("Firestore access check info: $e");
     }
 

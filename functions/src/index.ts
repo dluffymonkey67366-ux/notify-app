@@ -5,11 +5,14 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-export { grantPurchaseAccess } from "./grantAccess";
+export { grantPurchaseAccess, processPurchaseGrant } from "./grantAccess";
 export {
   checkAndRevokeAccess,
   scheduledRevokeExpiredPurchases,
+  revokePurchases,
+  processCheckAndRevoke,
 } from "./revokeAccess";
 export { onViolationCreated, handleViolationCreated } from "./violations";
 export { getDrmStreamManifest, requestDrmLicense } from "./drmPipeline";
 export * from "./types";
+

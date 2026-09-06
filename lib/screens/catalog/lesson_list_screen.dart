@@ -61,7 +61,7 @@ class _LessonListScreenState extends State<LessonListScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.inkCard,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.accentAmber.withOpacity(0.3)),
+                      border: Border.all(color: AppTheme.accentAmber.withValues(alpha: 0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,7 +71,7 @@ class _LessonListScreenState extends State<LessonListScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppTheme.accentAmber.withOpacity(0.2),
+                                color: AppTheme.accentAmber.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -148,7 +148,7 @@ class _LessonListScreenState extends State<LessonListScreen> {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: AppTheme.accentAmber.withOpacity(0.12),
+                              color: AppTheme.accentAmber.withValues(alpha: 0.12),
                               shape: BoxShape.circle,
                             ),
                             child: Center(

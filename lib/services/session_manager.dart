@@ -112,6 +112,9 @@ class SessionManager {
       },
       onError: (error) {
         // Handle permissions or network errors
+        if (error is FirebaseException && error.code == 'permission-denied') {
+          forceSignOut("Session access revoked: permission denied.");
+        }
       },
     );
   }
@@ -139,7 +142,11 @@ class SessionManager {
         return false;
       }
       return true;
-    } catch (_) {
+    } catch (e) {
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        await forceSignOut("Session access revoked: permission denied.");
+        return false;
+      }
       return true;
     }
   }

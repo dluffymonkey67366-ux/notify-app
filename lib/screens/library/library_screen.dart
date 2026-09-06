@@ -162,7 +162,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: theme.accentAmber.withOpacity(0.16),
+                                      color: theme.accentAmber.withValues(alpha: 0.16),
                                       borderRadius: NotifyRadius.xs,
                                     ),
                                     child: Text(
@@ -400,7 +400,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: theme.accentAmber.withOpacity(0.18),
+              color: theme.accentAmber.withValues(alpha: 0.18),
               borderRadius: NotifyRadius.md,
             ),
             child: const Icon(

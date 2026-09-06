@@ -202,7 +202,7 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
     return Scaffold(
       backgroundColor: AppTheme.inkDarker,
       appBar: AppBar(
-        backgroundColor: Colors.black.withOpacity(0.85),
+        backgroundColor: Colors.black.withValues(alpha: 0.85),
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -326,7 +326,7 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
                   decoration: BoxDecoration(
                     color: AppTheme.inkCard,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.errorRed.withOpacity(0.4)),
+                    border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.4)),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

@@ -62,14 +62,14 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppTheme.accentAmber.withOpacity(0.18),
+                          AppTheme.accentAmber.withValues(alpha: 0.18),
                           AppTheme.inkCard,
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.accentAmber.withOpacity(0.3)),
+                      border: Border.all(color: AppTheme.accentAmber.withValues(alpha: 0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +165,7 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.accentAmber.withOpacity(0.15),
+                                        color: AppTheme.accentAmber.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(

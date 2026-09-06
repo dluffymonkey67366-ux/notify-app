@@ -73,10 +73,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: BoxDecoration(
                     color: AppTheme.inkCard,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.accentAmber.withOpacity(0.4), width: 1.5),
+                    border: Border.all(color: AppTheme.accentAmber.withValues(alpha: 0.4), width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.accentAmber.withOpacity(0.15),
+                        color: AppTheme.accentAmber.withValues(alpha: 0.15),
                         blurRadius: 24,
                         offset: const Offset(0, 8),
                       ),
@@ -122,9 +122,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: AppTheme.errorRed.withOpacity(0.12),
+                    color: AppTheme.errorRed.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppTheme.errorRed.withOpacity(0.3)),
+                    border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -167,7 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 54),
                   backgroundColor: AppTheme.inkCard,
-                  side: BorderSide(color: AppTheme.textMuted.withOpacity(0.25)),
+                  side: BorderSide(color: AppTheme.textMuted.withValues(alpha: 0.25)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 icon: _isGoogleLoading
@@ -197,9 +197,9 @@ class _LoginScreenState extends State<LoginScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppTheme.inkCard.withOpacity(0.5),
+                  color: AppTheme.inkCard.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppTheme.textMuted.withOpacity(0.15)),
+                  border: Border.all(color: AppTheme.textMuted.withValues(alpha: 0.15)),
                 ),
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,

@@ -106,7 +106,11 @@ class DrmService {
         'completionPercentage': ((pageNumber / totalPages) * 100).round(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (_) {}
+    } catch (e) {
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        rethrow;
+      }
+    }
   }
 
   /// Loads last saved reading progress
@@ -125,7 +129,11 @@ class DrmService {
       if (doc.exists && doc.data() != null) {
         return (doc.data()!['pageNumber'] as int?) ?? 1;
       }
-    } catch (_) {}
+    } catch (e) {
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        rethrow;
+      }
+    }
     return 1;
   }
 }

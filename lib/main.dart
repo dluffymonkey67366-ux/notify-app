@@ -47,9 +47,9 @@ class _NotifyAppState extends State<NotifyApp> with WidgetsBindingObserver {
 
     // Listen to session conflicts from another device
     _sessionManager.onSessionConflict.listen((reason) {
-      final context = _navigatorKey.currentContext;
-      if (context != null) {
-        SessionConflictDialog.show(context, reason, () {
+      final navContext = _navigatorKey.currentContext;
+      if (mounted && navContext != null && navContext.mounted) {
+        SessionConflictDialog.show(navContext, reason, () {
           _navigatorKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const LoginScreen()),
             (route) => false,

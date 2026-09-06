@@ -39,6 +39,7 @@ class _DesktopDrmPlayerState extends State<DesktopDrmPlayer> {
   }
 
   /// Generates the embedded Chromium HTML5 + EME player bundle
+  // ignore: unused_element
   static String buildChromiumEmeHarness({
     required String dashUrl,
     required String licenseServerUrl,
@@ -122,7 +123,7 @@ class _DesktopDrmPlayerState extends State<DesktopDrmPlayer> {
                     color: Colors.black,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withValues(alpha: 0.5),
                         blurRadius: 16,
                         offset: const Offset(0, 4),
                       ),

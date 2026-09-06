@@ -69,7 +69,7 @@ class NotifyProgressBar extends StatelessWidget {
               height: height,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: theme.border.withOpacity(0.4),
+                color: theme.border.withValues(alpha: 0.4),
                 borderRadius: NotifyRadius.pill,
               ),
             ),
@@ -81,14 +81,14 @@ class NotifyProgressBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      barColor.withOpacity(0.85),
+                      barColor.withValues(alpha: 0.85),
                       barColor,
                     ],
                   ),
                   borderRadius: NotifyRadius.pill,
                   boxShadow: [
                     BoxShadow(
-                      color: barColor.withOpacity(0.3),
+                      color: barColor.withValues(alpha: 0.3),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),

@@ -45,7 +45,7 @@ class _NotifyCardState extends State<NotifyCard> {
             : (widget.isElevated ? theme.cardElevatedBg : theme.cardBg));
 
     final effectiveBorder = widget.borderColor ??
-        (_isHovered ? theme.accentAmber.withOpacity(0.4) : theme.borderSubtle);
+        (_isHovered ? theme.accentAmber.withValues(alpha: 0.4) : theme.borderSubtle);
 
     Widget content = Material(
       color: effectiveBg,
@@ -93,7 +93,7 @@ class _NotifyCardState extends State<NotifyCard> {
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
               transform: _isHovered
-                  ? (Matrix4.identity()..translate(0, -2))
+                  ? Matrix4.translationValues(0, -2, 0)
                   : Matrix4.identity(),
               child: content,
             ),

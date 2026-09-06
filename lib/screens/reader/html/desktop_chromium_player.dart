@@ -24,6 +24,20 @@ class _DesktopChromiumPlayerState extends State<DesktopChromiumPlayer> {
   InAppWebViewController? _webViewController;
 
   @override
+  void didUpdateWidget(DesktopChromiumPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.htmlContent != widget.htmlContent) {
+      final secureHtml = HtmlSecurityScripts.wrapSecureHtml(widget.htmlContent);
+      _webViewController?.loadData(
+        data: secureHtml,
+        mimeType: 'text/html',
+        encoding: 'utf-8',
+        baseUrl: WebUri('about:blank'),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final secureHtml = HtmlSecurityScripts.wrapSecureHtml(widget.htmlContent);
 

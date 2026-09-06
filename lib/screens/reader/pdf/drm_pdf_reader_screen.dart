@@ -219,7 +219,7 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                   decoration: BoxDecoration(
                     color: AppTheme.inkCard,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.errorRed.withOpacity(0.4)),
+                    border: Border.all(color: AppTheme.errorRed.withValues(alpha: 0.4)),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -258,7 +258,7 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.black.withOpacity(0.85), Colors.transparent],
+                      colors: [Colors.black.withValues(alpha: 0.85), Colors.transparent],
                     ),
                   ),
                   child: Row(
@@ -292,7 +292,7 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                           decoration: BoxDecoration(
                             color: AppTheme.inkCard,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppTheme.accentAmber.withOpacity(0.3)),
+                            border: Border.all(color: AppTheme.accentAmber.withValues(alpha: 0.3)),
                           ),
                           child: Text(
                             '$_currentPage / $_totalPages',
@@ -317,7 +317,7 @@ class _DrmPdfReaderScreenState extends State<DrmPdfReaderScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
-                      colors: [Colors.black.withOpacity(0.9), Colors.transparent],
+                      colors: [Colors.black.withValues(alpha: 0.9), Colors.transparent],
                     ),
                   ),
                   child: Row(
