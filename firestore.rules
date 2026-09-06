@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check if the user has a valid, non-expired purchase covering the target part, lesson, or subject
+    function hasActivePurchase(subjectId, lessonId, partId) {
+      let partPurchasePath = /databases/$(database)/documents/purchases/$(request.auth.uid + '_' + partId);
+      let lessonPurchasePath = /databases/$(database)/documents/purchases/$(request.auth.uid + '_' + lessonId);
+      let subjectPurchasePath = /databases/$(database)/documents/purchases/$(request.auth.uid + '_' + subjectId);
+
+      return isAuthenticated() && (
+        (exists(partPurchasePath) && 
+         get(partPurchasePath).data.userId == request.auth.uid && 
+         get(partPurchasePath).data.expiresAt > request.time) ||
+        (exists(lessonPurchasePath) && 
+         get(lessonPurchasePath).data.userId == request.auth.uid && 
+         get(lessonPurchasePath).data.expiresAt > request.time) ||
+        (exists(subjectPurchasePath) && 
+         get(subjectPurchasePath).data.userId == request.auth.uid && 
+         get(subjectPurchasePath).data.expiresAt > request.time)
+      );
+    }
+
+    // Subjects collection: Publicly readable for catalog browsing
+    match /subjects/{subjectId} {
+      allow read: if true;
+      allow write: if false;
+
+      // Lessons subcollection: Publicly readable for catalog browsing
+      match /lessons/{lessonId} {
+        allow read: if true;
+        allow write: if false;
+
+        // Parts subcollection: Contains fullRef.
+        // NON-NEGOTIABLE: No client can read a part or fullRef without a valid non-expired purchase.
+        match /parts/{partId} {
+          allow read: if hasActivePurchase(subjectId, lessonId, partId);
+          allow write: if false;
+
+          // Nested content or protected assets
+          match /{allSubcollections=**} {
+            allow read: if hasActivePurchase(subjectId, lessonId, partId);
+            allow write: if false;
+          }
+        }
+      }
+    }
+
+    // Packages collection: Available plans and pricing
+    match /packages/{packageId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Purchases collection:
+    // NON-NEGOTIABLE: No client can write purchases or expiresAt directly.
+    // Clients can only read their own purchase records.
+    match /purchases/{purchaseId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // User profile and session
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      // Session document / subcollection (single active session tracking)
+      match /session/{sessionId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Reading progress persistence per part (scrollY / pageNumber)
+      match /progress/{partId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) && 
+                     request.resource.data.updatedAt is timestamp;
+      }
+
+      // Security subcollection (e.g. pending OTP state during multi-step auth)
+      match /security/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Violations: Screenshot/screen-recording violation telemetry
+    // Clients can log a violation record for their own userId, but cannot read or modify
+    match /violations/{violationId} {
+      allow create: if isOwner(request.resource.data.userId) &&
+                       request.resource.data.timestamp is timestamp;
+      allow read, update, delete: if false;
+    }
+
+    // Admin alerts: Internal security notifications (Cloud Functions / Admin SDK only)
+    match /admin_alerts/{alertId} {
+      allow read, write: if false;
+    }
+  }
+}

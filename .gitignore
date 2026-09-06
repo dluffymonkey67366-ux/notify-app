@@ -1,0 +1,14 @@
+﻿# Flutter & Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.lock
+
+# Node & Firebase
+node_modules/
+functions/node_modules/
+functions/lib/
+*-debug.log
+.firebase/
