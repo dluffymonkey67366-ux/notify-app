@@ -109,6 +109,8 @@ class Subject {
   final String title;
   final String category; // "CA", "CMA", etc.
   final String level; // "Foundation", "Inter", "Final"
+  final String? group; // "Group 1", "Group 2"
+  final String? scheme; // e.g. "New Scheme 2024+"
   final String description;
   final int order;
   final DateTime? createdAt;
@@ -119,6 +121,8 @@ class Subject {
     required this.title,
     required this.category,
     required this.level,
+    this.group,
+    this.scheme,
     required this.description,
     required this.order,
     this.createdAt,
@@ -131,6 +135,8 @@ class Subject {
       title: data['title'] as String? ?? '',
       category: data['category'] as String? ?? 'CA',
       level: data['level'] as String? ?? 'Inter',
+      group: data['group'] as String?,
+      scheme: data['scheme'] as String?,
       description: data['description'] as String? ?? '',
       order: (data['order'] as num?)?.toInt() ?? 0,
       createdAt: _parseDateTime(data['createdAt']),
@@ -143,6 +149,8 @@ class Subject {
     'title': title,
     'category': category,
     'level': level,
+    if (group != null) 'group': group,
+    if (scheme != null) 'scheme': scheme,
     'description': description,
     'order': order,
     if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),

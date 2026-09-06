@@ -17,7 +17,8 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
   final CatalogService _catalogService = CatalogService();
   List<Subject> _subjects = [];
   bool _isLoading = true;
-  String _selectedLevel = 'All';
+  String _selectedLevel = 'Intermediate';
+  String _selectedGroup = 'All Papers';
 
   @override
   void initState() {
@@ -37,8 +38,24 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
   }
 
   List<Subject> get _filteredSubjects {
-    if (_selectedLevel == 'All') return _subjects;
-    return _subjects.where((s) => s.level.toLowerCase() == _selectedLevel.toLowerCase()).toList();
+    return _subjects.where((s) {
+      // 1. Level match
+      final bool matchesLevel;
+      if (_selectedLevel == 'Intermediate') {
+        matchesLevel = s.level.toLowerCase() == 'intermediate' || s.level.toLowerCase() == 'inter';
+      } else {
+        matchesLevel = s.level.toLowerCase() == _selectedLevel.toLowerCase();
+      }
+      if (!matchesLevel) return false;
+
+      // 2. Group match
+      if (_selectedGroup == 'Group 1') {
+        return s.group == 'Group 1';
+      } else if (_selectedGroup == 'Group 2') {
+        return s.group == 'Group 2';
+      }
+      return true; // 'All Papers'
+    }).toList();
   }
 
   @override
@@ -93,7 +110,7 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Select your subject to browse chapters, preview notes free, or unlock comprehensive study passes.',
+                          'Select your curriculum level and group to browse chapters, preview notes free, or unlock comprehensive study passes.',
                           style: TextStyle(color: theme.textMuted, fontSize: 13, height: 1.45),
                         ),
                       ],
@@ -101,37 +118,44 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Filter Chips
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
+                  // Tier 1: Course Level Segmented Control
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: theme.cardBg,
+                      borderRadius: NotifyRadius.md,
+                      border: Border.all(color: theme.borderSubtle),
+                    ),
                     child: Row(
-                      children: ['All', 'Inter', 'Final', 'Foundation'].map((lvl) {
+                      children: ['Foundation', 'Intermediate', 'Final'].map((lvl) {
                         final isSelected = _selectedLevel == lvl;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                        return Expanded(
                           child: InkWell(
-                            borderRadius: NotifyRadius.pill,
-                            onTap: () => setState(() => _selectedLevel = lvl),
+                            borderRadius: NotifyRadius.sm,
+                            onTap: () {
+                              setState(() {
+                                _selectedLevel = lvl;
+                                if (lvl == 'Foundation') {
+                                  _selectedGroup = 'All Papers';
+                                }
+                              });
+                            },
                             child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                              duration: const Duration(milliseconds: 160),
+                              padding: const EdgeInsets.symmetric(vertical: 9),
+                              alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: isSelected ? theme.accentAmber : theme.cardBg,
-                                borderRadius: NotifyRadius.pill,
-                                border: Border.all(
-                                  color: isSelected ? theme.accentAmber : theme.border,
-                                  width: 1.2,
-                                ),
+                                color: isSelected ? theme.accentAmber : Colors.transparent,
+                                borderRadius: NotifyRadius.sm,
                               ),
                               child: Text(
-                                lvl == 'All' ? 'All Subjects' : 'CA $lvl',
+                                lvl,
                                 style: TextStyle(
                                   color: isSelected
                                       ? (isDark ? NotifyColors.inkDarker : Colors.white)
                                       : theme.textMuted,
                                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                  fontSize: 12.5,
+                                  fontSize: 13,
                                 ),
                               ),
                             ),
@@ -140,6 +164,49 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
                       }).toList(),
                     ),
                   ),
+
+                  // Tier 2: Group Sub-tabs (Intermediate & Final)
+                  if (_selectedLevel != 'Foundation') ...[
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: ['All Papers', 'Group 1', 'Group 2'].map((grp) {
+                          final isSelected = _selectedGroup == grp;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: InkWell(
+                              borderRadius: NotifyRadius.pill,
+                              onTap: () => setState(() => _selectedGroup = grp),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? theme.accentAmber.withValues(alpha: 0.16)
+                                      : theme.cardBg,
+                                  borderRadius: NotifyRadius.pill,
+                                  border: Border.all(
+                                    color: isSelected ? theme.accentAmber : theme.border,
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Text(
+                                  grp,
+                                  style: TextStyle(
+                                    color: isSelected ? theme.accentAmber : theme.textMuted,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
 
                   // Subject Cards List
@@ -177,12 +244,31 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  NotifyTagBadge(
-                                    label: '${subject.category} • ${subject.level}',
-                                    color: theme.accentAmber,
+                                  Expanded(
+                                    child: Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      children: [
+                                        NotifyTagBadge(
+                                          label: '${subject.category} • ${subject.level == "Inter" ? "Intermediate" : subject.level}',
+                                          color: theme.accentAmber,
+                                        ),
+                                        if (subject.group != null)
+                                          NotifyTagBadge(
+                                            label: subject.group!,
+                                            color: theme.accentAmber,
+                                          ),
+                                        if (subject.scheme != null)
+                                          NotifyTagBadge(
+                                            label: subject.scheme!,
+                                            color: theme.accentTeal,
+                                          ),
+                                      ],
+                                    ),
                                   ),
-                                  const Spacer(),
+                                  const SizedBox(width: 8),
                                   Icon(Icons.arrow_forward_ios_rounded, color: theme.textMuted, size: 14),
                                 ],
                               ),
