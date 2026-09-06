@@ -15,6 +15,8 @@ class MobileHtmlPlayer extends StatefulWidget {
   final ReaderThemeConfig themeConfig;
   final double fontSize;
   final bool isSerif;
+  final void Function(String text)? onTextSelected;
+  final VoidCallback? onSelectionCleared;
 
   const MobileHtmlPlayer({
     super.key,
@@ -25,6 +27,8 @@ class MobileHtmlPlayer extends StatefulWidget {
     this.themeConfig = ReaderThemeConfig.ink,
     this.fontSize = 16.0,
     this.isSerif = true,
+    this.onTextSelected,
+    this.onSelectionCleared,
   });
 
   @override
@@ -107,6 +111,21 @@ class _MobileHtmlPlayerState extends State<MobileHtmlPlayer> {
           handlerName: 'onCanvasTap',
           callback: (args) {
             widget.onCanvasTap?.call();
+          },
+        );
+        controller.addJavaScriptHandler(
+          handlerName: 'onTextSelected',
+          callback: (args) {
+            if (args.isNotEmpty && args[0] is Map) {
+              final text = (args[0] as Map)['text']?.toString() ?? '';
+              widget.onTextSelected?.call(text);
+            }
+          },
+        );
+        controller.addJavaScriptHandler(
+          handlerName: 'onSelectionCleared',
+          callback: (args) {
+            widget.onSelectionCleared?.call();
           },
         );
       },

@@ -59,17 +59,106 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
   late List<TocChapter> _tocChapters;
   String? _activeSectionId;
 
+  // Annotations state (Rank 7)
+  NoteAnnotationsBundle _annotations = const NoteAnnotationsBundle(partId: '');
+  String? _selectedText;
+  bool _showHighlightToolbar = false;
+
   // Screen capture violation state
   bool _isContentBlanked = false;
   String? _violationWarning;
   StreamSubscription<ViolationEvent>? _violationSubscription;
 
+  bool get _isCurrentSectionBookmarked {
+    final currentSectionId = _activeSectionId ?? 'section_default';
+    return _annotations.bookmarks.any((b) => b.sectionId == currentSectionId);
+  }
+
   @override
   void initState() {
     super.initState();
+    _annotations = NoteAnnotationsBundle(partId: widget.partId);
     _tocChapters = TocChapter.defaultChaptersForPart(widget.partId, widget.partTitle);
     _readerSettings.addListener(_onReaderSettingsChanged);
     _initReaderAndProtection();
+  }
+
+  void _onContentLoaded() {
+    if (_annotations.highlights.isNotEmpty) {
+      final js = HtmlSecurityScripts.buildRestoreHighlightsJs(_annotations.highlights);
+      _webViewController?.evaluateJavascript(source: js);
+    }
+  }
+
+  void _onTextSelected(String text) {
+    if (text.trim().isEmpty) return;
+    setState(() {
+      _selectedText = text.trim();
+      _showHighlightToolbar = true;
+    });
+  }
+
+  void _onSelectionCleared() {
+    if (_showHighlightToolbar) {
+      setState(() {
+        _showHighlightToolbar = false;
+        _selectedText = null;
+      });
+    }
+  }
+
+  Future<void> _applyHighlight(HighlightColor color) async {
+    final text = _selectedText;
+    if (text == null || text.isEmpty) return;
+
+    final highlight = ReaderHighlight(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      partId: widget.partId,
+      text: text,
+      color: color,
+    );
+
+    final updatedHighlights = [..._annotations.highlights, highlight];
+    final updatedBundle = _annotations.copyWith(highlights: updatedHighlights);
+
+    setState(() {
+      _annotations = updatedBundle;
+      _showHighlightToolbar = false;
+      _selectedText = null;
+    });
+
+    final js = HtmlSecurityScripts.buildApplyHighlightJs(highlight);
+    await _webViewController?.evaluateJavascript(source: js);
+
+    await _cacheService.saveEncryptedAnnotations(widget.partId, updatedBundle);
+  }
+
+  Future<void> _toggleBookmark() async {
+    final currentSectionId = _activeSectionId ?? 'section_default';
+    final isAlreadyBookmarked =
+        _annotations.bookmarks.any((b) => b.sectionId == currentSectionId);
+
+    List<ReaderBookmark> updatedBookmarks;
+    if (isAlreadyBookmarked) {
+      updatedBookmarks = _annotations.bookmarks
+          .where((b) => b.sectionId != currentSectionId)
+          .toList();
+    } else {
+      final bookmark = ReaderBookmark(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        partId: widget.partId,
+        title: widget.partTitle,
+        sectionId: currentSectionId,
+      );
+      updatedBookmarks = [..._annotations.bookmarks, bookmark];
+    }
+
+    final updatedBundle = _annotations.copyWith(bookmarks: updatedBookmarks);
+    setState(() {
+      _annotations = updatedBundle;
+    });
+
+    await _cacheService.saveEncryptedAnnotations(widget.partId, updatedBundle);
   }
 
   void _onSectionSelected(TocSection section) {
@@ -151,9 +240,21 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
         html = await _cacheService.readDecryptedContent(widget.partId);
       }
 
+      // Load saved annotations from encrypted cache
+      NoteAnnotationsBundle loadedAnnotations = NoteAnnotationsBundle(partId: widget.partId);
+      try {
+        final saved = await _cacheService.readDecryptedAnnotations(widget.partId);
+        if (saved != null) {
+          loadedAnnotations = saved;
+        }
+      } catch (e) {
+        debugPrint('Notify Annotations: Error reading encrypted annotations: $e');
+      }
+
       if (mounted) {
         setState(() {
           _decryptedHtml = html;
+          _annotations = loadedAnnotations;
           _isLoading = false;
         });
       }
@@ -271,7 +372,9 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
                       isSerif: _readerSettings.isSerif,
                       onControllerCreated: (controller) => _webViewController = controller,
                       onCanvasTap: () => setState(() => _showControls = !_showControls),
-                      onContentLoaded: () {},
+                      onContentLoaded: _onContentLoaded,
+                      onTextSelected: _onTextSelected,
+                      onSelectionCleared: _onSelectionCleared,
                     )
                   : MobileHtmlPlayer(
                       htmlContent: _decryptedHtml!,
@@ -280,7 +383,9 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
                       isSerif: _readerSettings.isSerif,
                       onControllerCreated: (controller) => _webViewController = controller,
                       onCanvasTap: () => setState(() => _showControls = !_showControls),
-                      onContentLoaded: () {},
+                      onContentLoaded: _onContentLoaded,
+                      onTextSelected: _onTextSelected,
+                      onSelectionCleared: _onSelectionCleared,
                     ),
             ),
           ),
@@ -414,6 +519,19 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              _isCurrentSectionBookmarked
+                  ? Icons.bookmark_rounded
+                  : Icons.bookmark_border_rounded,
+              color: _isCurrentSectionBookmarked
+                  ? NotifyColors.amber
+                  : themeConfig.textColor,
+              size: 20,
+            ),
+            tooltip: _isCurrentSectionBookmarked ? 'Remove Bookmark' : 'Add Bookmark',
+            onPressed: _toggleBookmark,
+          ),
           if (!isDesktopMeasure)
             IconButton(
               icon: Icon(
@@ -472,6 +590,25 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
                             ),
                           ),
                         ),
+                        // Desktop floating highlight toolbar (Rank 7)
+                        if (_showHighlightToolbar && _selectedText != null && !_isContentBlanked)
+                          Positioned(
+                            bottom: _showControls ? 96 : 32,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: NotifyHighlightToolbar(
+                                themeConfig: themeConfig,
+                                isBookmarked: _isCurrentSectionBookmarked,
+                                onColorSelected: _applyHighlight,
+                                onBookmark: _toggleBookmark,
+                                onDismiss: () => setState(() {
+                                  _showHighlightToolbar = false;
+                                  _selectedText = null;
+                                }),
+                              ),
+                            ),
+                          ),
                         // Desktop reader controls bar
                         if (_showControls && !_isLoading && _errorMessage == null && !_isContentBlanked)
                           Positioned(
@@ -499,6 +636,25 @@ class _HtmlNoteReaderScreenState extends State<HtmlNoteReaderScreen> {
             : Stack(
                 children: [
                   contentColumn,
+                  // Mobile floating highlight toolbar (Rank 7)
+                  if (_showHighlightToolbar && _selectedText != null && !_isContentBlanked)
+                    Positioned(
+                      bottom: _showControls ? 96 : 32,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: NotifyHighlightToolbar(
+                          themeConfig: themeConfig,
+                          isBookmarked: _isCurrentSectionBookmarked,
+                          onColorSelected: _applyHighlight,
+                          onBookmark: _toggleBookmark,
+                          onDismiss: () => setState(() {
+                            _showHighlightToolbar = false;
+                            _selectedText = null;
+                          }),
+                        ),
+                      ),
+                    ),
                   // Mobile reader controls bar
                   if (_showControls && !_isLoading && _errorMessage == null && !_isContentBlanked)
                     Positioned(

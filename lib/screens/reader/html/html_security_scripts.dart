@@ -1,30 +1,28 @@
 import '../../../design_system/reader_theme.dart';
+import '../../../models/reader_annotation_models.dart';
 
 /// Injected JavaScript and CSS security rules to enforce view-only DRM protection
-/// inside the mobile and desktop Chromium webviews.
+/// inside the mobile and desktop Chromium webviews while enabling in-reader
+/// text highlighting (Amber, Emerald, Coral) and encrypted bookmarking.
 class HtmlSecurityScripts {
-  /// JavaScript injected at document creation to lock down clipboard, selection, contextmenu, and hotkeys.
+  /// JavaScript injected at document creation to lock down clipboard, contextmenu, and hotkeys
+  /// while enabling DRM-safe text selection for in-app highlighting.
   static const String injectedSecurityJs = '''
 (function() {
-  // 1. Disable context menu
+  // 1. Strictly block context menu (right-click / long-press inspect)
   document.addEventListener('contextmenu', function(e) {
     e.preventDefault();
     e.stopPropagation();
     return false;
   }, true);
 
-  // 2. Disable text selection and dragging
-  document.addEventListener('selectstart', function(e) {
-    e.preventDefault();
-    return false;
-  }, true);
-
+  // 2. Block dragging of text, images, and anchors
   document.addEventListener('dragstart', function(e) {
     e.preventDefault();
     return false;
   }, true);
 
-  // 3. Block copy and cut actions
+  // 3. Block copy and cut actions — wipe clipboard data
   document.addEventListener('copy', function(e) {
     e.preventDefault();
     if (e.clipboardData) {
@@ -53,23 +51,31 @@ class HtmlSecurityScripts {
     }
   }, true);
 
-  // 5. Inject CSS disabling user-select across all elements
+  // 5. Inject CSS disabling OS callout while permitting in-app reading selection
   function injectSecurityCss() {
     var style = document.createElement('style');
     style.type = 'text/css';
     style.id = 'notify-anti-copy-style';
     style.innerHTML = `
       * {
-        -webkit-user-select: none !important;
-        -moz-user-select: none !important;
-        -ms-user-select: none !important;
-        user-select: none !important;
         -webkit-touch-callout: none !important;
       }
-      img, a {
+      body, p, h1, h2, h3, h4, h5, h6, li, span, blockquote, td, th, em, strong, mark {
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+        user-select: text !important;
+      }
+      img, a, button, nav, header {
+        -webkit-user-select: none !important;
+        user-select: none !important;
         -webkit-user-drag: none !important;
         user-drag: none !important;
         pointer-events: auto !important;
+      }
+      ::selection {
+        background-color: rgba(245, 158, 11, 0.35);
+        color: inherit;
       }
     `;
     if (document.head) {
@@ -79,9 +85,31 @@ class HtmlSecurityScripts {
     }
   }
 
-  // 6. Report canvas taps to Flutter for toggling reader HUD controls
-  document.addEventListener('click', function(e) {
+  // 6. Monitor in-reader text selection for the floating highlight toolbar
+  function notifySelectionChange() {
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      var text = sel.toString().trim();
+      if (text.length > 0 && window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+        window.flutter_inappwebview.callHandler('onTextSelected', {
+          'text': text,
+        });
+        return;
+      }
+    }
     if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+      window.flutter_inappwebview.callHandler('onSelectionCleared');
+    }
+  }
+
+  document.addEventListener('mouseup', notifySelectionChange);
+  document.addEventListener('touchend', notifySelectionChange);
+
+  // 7. Report canvas taps to Flutter for toggling reader HUD controls (only when no selection)
+  document.addEventListener('click', function(e) {
+    var sel = window.getSelection();
+    var hasSelection = sel && sel.toString().trim().length > 0;
+    if (!hasSelection && window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
       window.flutter_inappwebview.callHandler('onCanvasTap');
     }
   });
@@ -147,6 +175,134 @@ class HtmlSecurityScripts {
 ''';
   }
 
+  /// Generates JavaScript to apply a persistent highlight to the current DOM selection
+  static String buildApplyHighlightJs(ReaderHighlight highlight) {
+    final cleanText = highlight.text.replaceAll("'", "\\'").replaceAll('\n', ' ');
+    final cleanId = highlight.id.replaceAll("'", "\\'");
+    final colorName = highlight.color.name;
+    final rgba = highlight.color.rgba;
+    final hex = highlight.color.hex;
+
+    return '''
+(function() {
+  var sel = window.getSelection();
+  var applied = false;
+  if (sel && sel.rangeCount > 0) {
+    var range = sel.getRangeAt(0);
+    if (range && !range.collapsed) {
+      var mark = document.createElement('mark');
+      mark.id = 'notify-hl-$cleanId';
+      mark.className = 'notify-hl notify-hl-$colorName';
+      mark.setAttribute('data-hl-id', '$cleanId');
+      mark.setAttribute('data-hl-color', '$colorName');
+      mark.style.backgroundColor = '$rgba';
+      mark.style.borderBottom = '2px solid $hex';
+      mark.style.borderRadius = '3px';
+      mark.style.padding = '1px 3px';
+      mark.style.color = 'inherit';
+
+      try {
+        range.surroundContents(mark);
+        applied = true;
+      } catch (e) {
+        var span = document.createElement('span');
+        span.appendChild(range.extractContents());
+        mark.appendChild(span);
+        range.insertNode(mark);
+        applied = true;
+      }
+      sel.removeAllRanges();
+    }
+  }
+
+  if (!applied && '$cleanText'.length > 0) {
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+    var node;
+    while (node = walker.nextNode()) {
+      var idx = node.nodeValue.indexOf('$cleanText');
+      if (idx !== -1 && !node.parentElement.classList.contains('notify-hl')) {
+        var r = document.createRange();
+        r.setStart(node, idx);
+        r.setEnd(node, idx + '$cleanText'.length);
+        var m = document.createElement('mark');
+        m.id = 'notify-hl-$cleanId';
+        m.className = 'notify-hl notify-hl-$colorName';
+        m.setAttribute('data-hl-id', '$cleanId');
+        m.style.backgroundColor = '$rgba';
+        m.style.borderBottom = '2px solid $hex';
+        m.style.borderRadius = '3px';
+        m.style.padding = '1px 3px';
+        m.style.color = 'inherit';
+        try {
+          r.surroundContents(m);
+        } catch (_) {}
+        break;
+      }
+    }
+  }
+})();
+''';
+  }
+
+  /// Generates JavaScript to restore all saved highlights into the DOM
+  static String buildRestoreHighlightsJs(List<ReaderHighlight> highlights) {
+    if (highlights.isEmpty) return '';
+    final buffer = StringBuffer();
+    buffer.writeln('(function() {');
+    for (final hl in highlights) {
+      final cleanText = hl.text.replaceAll("'", "\\'").replaceAll('\n', ' ');
+      final cleanId = hl.id.replaceAll("'", "\\'");
+      final colorName = hl.color.name;
+      final rgba = hl.color.rgba;
+      final hex = hl.color.hex;
+      buffer.writeln('''
+  if (!document.getElementById('notify-hl-$cleanId')) {
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+    var node;
+    while (node = walker.nextNode()) {
+      var idx = node.nodeValue.indexOf('$cleanText');
+      if (idx !== -1 && !node.parentElement.classList.contains('notify-hl')) {
+        var r = document.createRange();
+        r.setStart(node, idx);
+        r.setEnd(node, idx + '$cleanText'.length);
+        var m = document.createElement('mark');
+        m.id = 'notify-hl-$cleanId';
+        m.className = 'notify-hl notify-hl-$colorName';
+        m.setAttribute('data-hl-id', '$cleanId');
+        m.style.backgroundColor = '$rgba';
+        m.style.borderBottom = '2px solid $hex';
+        m.style.borderRadius = '3px';
+        m.style.padding = '1px 3px';
+        m.style.color = 'inherit';
+        try {
+          r.surroundContents(m);
+        } catch (_) {}
+        break;
+      }
+    }
+  }
+''');
+    }
+    buffer.writeln('})();');
+    return buffer.toString();
+  }
+
+  /// Generates JavaScript to remove a highlight from the DOM
+  static String buildRemoveHighlightJs(String highlightId) {
+    final cleanId = highlightId.replaceAll("'", "\\'");
+    return '''
+(function() {
+  var mark = document.getElementById('notify-hl-$cleanId');
+  if (mark && mark.parentNode) {
+    while (mark.firstChild) {
+      mark.parentNode.insertBefore(mark.firstChild, mark);
+    }
+    mark.parentNode.removeChild(mark);
+  }
+})();
+''';
+  }
+
   /// Wraps decrypted raw HTML into a secure, self-contained document with responsive CSS variables
   /// matching the user's active theme and typography preferences.
   static String wrapSecureHtml(
@@ -178,11 +334,19 @@ class HtmlSecurityScripts {
       --reader-line-height: 1.65;
     }
     * {
-      -webkit-user-select: none !important;
-      -moz-user-select: none !important;
-      -ms-user-select: none !important;
-      user-select: none !important;
       -webkit-touch-callout: none !important;
+    }
+    body, p, h1, h2, h3, h4, h5, h6, li, span, blockquote, td, th, em, strong, mark {
+      -webkit-user-select: text !important;
+      -moz-user-select: text !important;
+      -ms-user-select: text !important;
+      user-select: text !important;
+    }
+    img, a, button, nav, header {
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      -webkit-user-drag: none !important;
+      user-drag: none !important;
     }
     html {
       background-color: var(--reader-bg);
@@ -247,7 +411,7 @@ class HtmlSecurityScripts {
     $injectedSecurityJs
   </script>
 </head>
-<body oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;">
+<body oncontextmenu="return false;" ondragstart="return false;">
   $rawHtml
 </body>
 </html>

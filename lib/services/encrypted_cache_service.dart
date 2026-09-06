@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../models/reader_annotation_models.dart';
 import 'crypto_utils.dart';
 
 /// EncryptedCacheService handles local offline caching of HTML note content.
@@ -148,6 +149,68 @@ class EncryptedCacheService {
     return await file.readAsBytes();
   }
 
+  File _getAnnotationsFile(Directory dir, String partId) {
+    final safeId = partId.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+    return File('${dir.path}/${safeId}_annotations.enc');
+  }
+
+  /// Encrypts and writes annotations bundle (highlights, bookmarks) to AES-256 encrypted cache
+  Future<File> saveEncryptedAnnotations(String partId, NoteAnnotationsBundle bundle) async {
+    final jsonStr = bundle.toJson();
+    final key = await getOrCreateEncryptionKey();
+    final cacheDir = await _getCacheDirectory();
+    final file = _getAnnotationsFile(cacheDir, partId);
+
+    final random = Random.secure();
+    final iv = Uint8List(16);
+    for (int i = 0; i < 16; i++) {
+      iv[i] = random.nextInt(256);
+    }
+
+    final plainBytes = Uint8List.fromList(utf8.encode(jsonStr));
+    final cipherBytes = Aes256Cbc.encrypt(
+      plainBytes: plainBytes,
+      key: key,
+      iv: iv,
+    );
+
+    final diskPayload = Uint8List(iv.length + cipherBytes.length);
+    diskPayload.setRange(0, 16, iv);
+    diskPayload.setRange(16, diskPayload.length, cipherBytes);
+
+    await file.writeAsBytes(diskPayload, flush: true);
+    return file;
+  }
+
+  /// Reads and decrypts annotations bundle for a part.
+  /// Returns NoteAnnotationsBundle or null if not yet saved.
+  Future<NoteAnnotationsBundle?> readDecryptedAnnotations(String partId) async {
+    final cacheDir = await _getCacheDirectory();
+    final file = _getAnnotationsFile(cacheDir, partId);
+
+    if (!await file.exists()) {
+      return null;
+    }
+
+    final diskPayload = await file.readAsBytes();
+    if (diskPayload.length < 16 + Aes256Cbc.blockSize) {
+      return null;
+    }
+
+    final iv = Uint8List.fromList(diskPayload.sublist(0, 16));
+    final cipherBytes = Uint8List.fromList(diskPayload.sublist(16));
+    final key = await getOrCreateEncryptionKey();
+
+    final plainBytes = Aes256Cbc.decrypt(
+      cipherBytes: cipherBytes,
+      key: key,
+      iv: iv,
+    );
+
+    final jsonStr = utf8.decode(plainBytes);
+    return NoteAnnotationsBundle.fromJson(jsonStr);
+  }
+
   /// Checks whether encrypted cache exists for a part
   Future<bool> hasCachedContent(String partId) async {
     final cacheDir = await _getCacheDirectory();
@@ -161,6 +224,10 @@ class EncryptedCacheService {
     final file = _getCacheFile(cacheDir, partId);
     if (await file.exists()) {
       await file.delete();
+    }
+    final annotFile = _getAnnotationsFile(cacheDir, partId);
+    if (await annotFile.exists()) {
+      await annotFile.delete();
     }
   }
 

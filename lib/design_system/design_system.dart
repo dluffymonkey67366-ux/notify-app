@@ -9,4 +9,6 @@ export 'components/notify_button.dart';
 export 'components/notify_search_bar.dart';
 export 'components/notify_reader_controls_bar.dart';
 export 'components/notify_reader_drawer.dart';
+export 'components/notify_highlight_toolbar.dart';
+export '../models/reader_annotation_models.dart';
 export 'reader_theme.dart';
