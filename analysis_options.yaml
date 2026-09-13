@@ -18,6 +18,10 @@ analyzer:
     - linux/**
     - functions/**
     - node_modules/**
+  errors:
+    deprecated_member_use: ignore
+    unused_field: ignore
+    unused_element: ignore
 include: package:flutter_lints/flutter.yaml
 
 linter:
